@@ -11,6 +11,11 @@ _data/
 *.26O
 *.26N
 
+# --- 문서/설계 HTML (코드 무관, _excluded/로 분리 보관) ---
+# 단, 앱 UI 코드인 logviewer/index.html 은 추적 유지
+*.html
+!logviewer/index.html
+
 # --- 환경 변수 ---
 .env
 
