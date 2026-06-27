@@ -1,0 +1,135 @@
+# DAH 테스트베드 — M0 baseline
+# 공중(ArduPilot SITL) ↔ 지상(mavlink-router) ↔ 지상 클라이언트(QGC / pymavlink)
+name: dah-testbed
+
+services:
+  # ── 공중 계층: ArduPilot SITL (ArduCopter) ──────────────────────
+  air:
+    build:
+      context: ./air
+      args:
+        ARDUPILOT_TAG: ${ARDUPILOT_TAG:-Copter-4.5}
+    container_name: dah-air
+    expose:
+      - "5760"
+    restart: unless-stopped
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.10
+
+  # ── 지상 계층: mavlink-router (fan-out / failover 토대) ──────────
+  router:
+    build:
+      context: ./ground/mavlink-router
+    container_name: dah-router
+    depends_on: [c2channel]
+    restart: unless-stopped
+    volumes:
+      - ./ground/mavlink-router/main.conf:/etc/mavlink-router/main.conf:ro
+    ports:
+      - "5790:5790/tcp"     # QGroundControl (TCP, 권장)
+      - "14550:14550/udp"   # QGroundControl (UDP, 대체)
+      - "14551:14551/udp"   # 텔레메트리 점검 / VSM(서명) 종단점
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.20
+
+  # ── GPS 채널: GNSS 매질 (GPS_INPUT 공급) ───────────────────────
+  gnss:
+    build:
+      context: ./rf
+    container_name: dah-gnss
+    depends_on: [router]
+    command: ["run", "udpout:172.28.0.20:14552"]
+    restart: unless-stopped
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.30
+
+  # ── C2 링크 채널(B): router↔air 무선 링크 에뮬(재밍 knob) ──────
+  c2channel:
+    build:
+      context: ./rf/channel
+    container_name: dah-c2channel
+    depends_on: [air]
+    environment:
+      AIR: tcp:172.28.0.10:5760
+      GND_PORT: 14570
+      LOSS: 0
+    volumes:
+      - ./rf/channel/ctrl:/ctrl
+    restart: unless-stopped
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.50
+
+  # ── GPS 채널(A2): 실제 I/Q (gps-sdr-sim → GNSS-SDR) ────────────
+  # profile "iq" — 기본 up 에선 안 뜸. A1(gnss)과 GPS 소스가 충돌하므로
+  # A2 모드 사용 시: docker compose stop gnss && docker compose --profile iq up -d sdr
+  sdr:
+    build:
+      context: ./rf/sdr
+    image: dah-sdr
+    container_name: dah-sdr
+    profiles: ["iq"]
+    depends_on: [router]
+    environment:
+      LAT: ${IQ_LAT:-37.5665}
+      LON: ${IQ_LON:-126.9780}
+      ALT: ${IQ_ALT:-30}
+      DUR: ${IQ_DUR:-180}
+      CONN: udpout:172.28.0.20:14552
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.40
+
+  # ── 페이로드 채널(C): 카메라/짐벌 MAVLink + KLV(ST0601) ─────────
+  payload:
+    build:
+      context: ./payload
+    container_name: dah-payload
+    depends_on: [router]
+    environment:
+      CONN: udpout:172.28.0.20:14553
+      KLV_DEST: host.docker.internal:14580
+    restart: unless-stopped
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.60
+
+  # ── 페이로드 영상(C.2): GStreamer RTP H.264 → 지상(5600) ────────
+  video:
+    build:
+      context: ./video
+    container_name: dah-video
+    environment:
+      DEST: host.docker.internal
+      PORT: "5600"
+    restart: unless-stopped
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.70
+
+  # ── 웹 로그뷰어: 세 채널 상태·이벤트 실시간 대시보드 ───────────
+  logviewer:
+    build:
+      context: ./logviewer
+    container_name: dah-logviewer
+    depends_on: [router]
+    environment:
+      CONN: udpout:172.28.0.20:14554
+    volumes:
+      - ./rf/channel/ctrl:/ctrl:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      dahnet:
+        ipv4_address: 172.28.0.80
+
+networks:
+  dahnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

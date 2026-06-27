@@ -1,0 +1,21 @@
+# M0 baseline 파라미터 (ArduCopter SITL)
+# SITL 기본 파라미터(copter.parm) 위에 덮어쓴다.
+
+# 주소체계: 기체 system id (docs/address-scheme.md 와 일치)
+SYSID_THISMAV    1
+
+# 텔레메트리 스트림 레이트(Hz) — 정상 baseline (3-plane #2에서 정밀 확정)
+# SERIAL0(TCP 5760, 라우터 접속 채널) = SR0_*. GCS가 요청 안 해도 기본 스트리밍.
+SR0_EXTRA1       10
+SR0_EXTRA2       10
+SR0_POSITION     5
+SR0_EXT_STAT     2
+SR0_RAW_SENS     2
+
+# 참고: MAVLink v2 서명은 파라미터가 아니라 SETUP_SIGNING 메시지로 활성화한다.
+#       ground/signing/setup_signing.py 사용.
+
+# GPS 채널(외부화) — A1: GPS를 매질(gnss 컨테이너) 경유로 받는다.
+# 내부 SIM GPS 비활성 + 외부 GPS_INPUT 모드. gnss 서비스가 GPS를 공급해야 fix를 얻는다.
+SIM_GPS_DISABLE  1
+GPS_TYPE         14

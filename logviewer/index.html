@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAH 로그뷰어</title>
+<style>
+  :root{--bg:#0f1419;--panel:#1a2129;--ink:#e6edf3;--muted:#9fb0c0;--line:#2d3742;
+    --accent:#5cc8ff;--ok:#8affc1;--warn:#ffcf6b;--danger:#ff7b72;--gps:#c9a6ff;--c2:#ffb38a;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","Malgun Gothic",sans-serif}
+  header{padding:14px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px}
+  header h1{font-size:18px;margin:0}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--danger);display:inline-block}
+  .dot.on{background:var(--ok)}
+  .wrap{max-width:1200px;margin:0 auto;padding:18px 22px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:14px;color:var(--accent);letter-spacing:.3px}
+  .card.gps h3{color:var(--gps)} .card.c2 h3{color:var(--c2)}
+  .row{display:flex;justify-content:space-between;font-size:13px;margin:5px 0;color:var(--muted)}
+  .row b{color:var(--ink);font-family:Consolas,monospace}
+  .big{font-size:20px;font-weight:700;color:var(--ink)}
+  .tag{padding:1px 8px;border-radius:6px;font-size:12px;font-weight:600}
+  .tag.ok{background:#173b2a;color:var(--ok)} .tag.no{background:#3b1717;color:var(--danger)}
+  .tag.warn{background:#3b3317;color:var(--warn)}
+  .bar{height:7px;background:#11161c;border-radius:4px;overflow:hidden;margin-top:3px}
+  .bar > i{display:block;height:100%;background:var(--danger)}
+  .lower{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:14px}
+  @media(max-width:900px){.lower{grid-template-columns:1fr}}
+  canvas{width:100%;height:300px;background:#0b0f14;border-radius:8px;display:block}
+  #log{height:300px;overflow:auto;font-family:Consolas,monospace;font-size:12.5px}
+  #log div{padding:2px 0;border-bottom:1px solid #161d25}
+  #log .t{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="conn"></span>
+  <h1>DAH 테스트베드 — 실시간 로그뷰어</h1>
+  <span class="row" style="margin-left:auto"><span id="ts" class="t"></span></span>
+</header>
+<div class="wrap">
+  <div class="grid">
+    <div class="card">
+      <h3>기체 (AV)</h3>
+      <div class="row">모드 <b id="d_mode">-</b></div>
+      <div class="row">무장 <span id="d_arm" class="tag no">-</span></div>
+      <div class="row">고도 <b id="d_alt">-</b></div>
+      <div class="row">하트비트 <b id="d_hb">-</b></div>
+    </div>
+    <div class="card gps">
+      <h3>GPS 채널 (A)</h3>
+      <div class="row">fix <span id="g_fix" class="tag">-</span></div>
+      <div class="row">위성 <b id="g_sats">-</b></div>
+      <div class="row">위도 <b id="g_lat">-</b></div>
+      <div class="row">경도 <b id="g_lon">-</b></div>
+    </div>
+    <div class="card c2">
+      <h3>C2 링크 채널 (B)</h3>
+      <div class="row">active <span id="c_act" class="tag ok">-</span></div>
+      <div class="row">primary 재밍 <b id="c_jp">-</b></div>
+      <div class="bar"><i id="c_jpb" style="width:0%"></i></div>
+      <div class="row" style="margin-top:6px">secondary 재밍 <b id="c_js">-</b></div>
+      <div class="bar"><i id="c_jsb" style="width:0%"></i></div>
+    </div>
+    <div class="card">
+      <h3>페이로드 채널 (C)</h3>
+      <div class="row">카메라 <span id="p_cam" class="tag no">-</span></div>
+      <div class="row">센서 위도 <b id="p_lat">-</b></div>
+      <div class="row">센서 경도 <b id="p_lon">-</b></div>
+      <div class="row">영상 <span class="tag ok">RTP :5600</span></div>
+    </div>
+  </div>
+
+  <div class="lower">
+    <div class="card">
+      <h3>궤적 (기체 위치)</h3>
+      <canvas id="traj" width="700" height="300"></canvas>
+    </div>
+    <div class="card">
+      <h3>이벤트</h3>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const pts = [];
+function fix_tag(f){return f>=3?'<span class="tag ok">3D</span>':(f>=2?'<span class="tag warn">2D</span>':'<span class="tag no">NO</span>');}
+function drawTraj(){
+  const c=$('traj'), x=c.getContext('2d'); const W=c.width,H=c.height;
+  x.clearRect(0,0,W,H);
+  if(pts.length<2)return;
+  let la=pts.map(p=>p[0]), lo=pts.map(p=>p[1]);
+  let laMin=Math.min(...la),laMax=Math.max(...la),loMin=Math.min(...lo),loMax=Math.max(...lo);
+  const pad=0.0003; laMin-=pad;laMax+=pad;loMin-=pad;loMax+=pad;
+  const sx=v=>(v-loMin)/(loMax-loMin||1)*(W-30)+15;
+  const sy=v=>H-((v-laMin)/(laMax-laMin||1)*(H-30)+15);
+  x.strokeStyle='#5cc8ff';x.lineWidth=2;x.beginPath();
+  pts.forEach((p,i)=>{const X=sx(p[1]),Y=sy(p[0]); i?x.lineTo(X,Y):x.moveTo(X,Y);});
+  x.stroke();
+  const last=pts[pts.length-1];
+  x.fillStyle='#8affc1';x.beginPath();x.arc(sx(last[1]),sy(last[0]),5,0,7);x.fill();
+}
+async function tick(){
+  try{
+    const s=await (await fetch('/state')).json();
+    $('conn').classList.add('on');
+    $('ts').textContent=new Date().toLocaleTimeString();
+    $('d_mode').textContent=s.drone.mode;
+    $('d_arm').className='tag '+(s.drone.armed?'ok':'no'); $('d_arm').textContent=s.drone.armed?'ARMED':'disarm';
+    $('d_alt').textContent=s.drone.alt.toFixed(1)+' m';
+    $('d_hb').textContent=s.drone.hb_hz.toFixed(2)+' Hz';
+    $('g_fix').innerHTML=fix_tag(s.gps.fix);
+    $('g_sats').textContent=s.gps.sats;
+    $('g_lat').textContent=s.gps.lat.toFixed(6); $('g_lon').textContent=s.gps.lon.toFixed(6);
+    $('c_act').textContent=s.c2.active; $('c_act').className='tag '+(s.c2.active==='primary'?'ok':'warn');
+    $('c_jp').textContent=(s.c2.jam_primary*100).toFixed(0)+'%'; $('c_jpb').style.width=(s.c2.jam_primary*100)+'%';
+    $('c_js').textContent=(s.c2.jam_secondary*100).toFixed(0)+'%'; $('c_jsb').style.width=(s.c2.jam_secondary*100)+'%';
+    $('p_cam').className='tag '+(s.payload.camera?'ok':'no'); $('p_cam').textContent=s.payload.camera?'활성':'-';
+    $('p_lat').textContent=s.payload.sensor_lat.toFixed(6); $('p_lon').textContent=s.payload.sensor_lon.toFixed(6);
+    if(s.drone.lat){const last=pts[pts.length-1]; if(!last||last[0]!==s.drone.lat||last[1]!==s.drone.lon){pts.push([s.drone.lat,s.drone.lon]); if(pts.length>500)pts.shift();}}
+    drawTraj();
+    $('log').innerHTML=s.events.slice().reverse().map(e=>`<div><span class="t">${e.t}</span>　${e.msg}</div>`).join('');
+  }catch(e){$('conn').classList.remove('on');}
+}
+setInterval(tick,1000); tick();
+</script>
+</body>
+</html>

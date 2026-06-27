@@ -1,0 +1,22 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+
+# --- 빌드/실행 로그 ---
+*.log
+
+# --- GNSS/SDR 생성 데이터 (rf/sdr/_data 등) ---
+_data/
+*.bin
+*.26O
+*.26N
+
+# --- 환경 변수 ---
+.env
+
+# --- Claude Code 로컬 설정 ---
+.claude/settings.local.json
+
+# --- OS ---
+.DS_Store
+Thumbs.db
