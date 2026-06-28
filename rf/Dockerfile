@@ -4,5 +4,5 @@ RUN pip install --no-cache-dir pymavlink
 WORKDIR /app
 COPY gnss_medium.py /app/
 ENTRYPOINT ["python", "-u", "gnss_medium.py"]
-# 라우터의 GPS 전용 엔드포인트(14552)로 접속해 GPS_INPUT 주입
-CMD ["run", "udpout:172.28.0.20:14552"]
+# GPS 매질 가동: SIMSTATE(다운링크) → GPS_INPUT(업링크 브로드캐스트). 포트는 env(BCAST/UP_PORT).
+CMD ["run"]

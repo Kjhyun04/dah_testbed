@@ -4,11 +4,15 @@
 GNSS-SDR를 I/Q 파일에 대해 실행하고, stdout의
   "Position at ... Lat = X [deg], Long = Y [deg], Height = Z [m]"
 를 파싱해 안정 위치(중앙값)를 구한 뒤, 그 위치를 GPS_INPUT(#232)으로
-라우터(14552) 경유 FC에 5Hz 공급한다. (파일 디코드라 정적 위치)
+업링크 브로드캐스트(UP_PORT) → c2channel(면제 전달) 경유 FC에 5Hz 공급한다.
+(파일 디코드라 정적 위치)
 
-사용: python3 sdr_to_gps.py [conn]   (기본 udpout:172.28.0.20:14552)
+사용: python3 sdr_to_gps.py [conn]
+      (기본 udpout:$BCAST:$UP_PORT — 업링크 브로드캐스트)
 """
+import os
 import re
+import socket
 import statistics
 import subprocess
 import sys
@@ -20,7 +24,9 @@ try:
 except Exception:
     pass
 
-CONN = sys.argv[1] if len(sys.argv) > 1 else "udpout:172.28.0.20:14552"
+BCAST = os.environ.get("BCAST", "172.28.255.255")
+UP_PORT = int(os.environ.get("UP_PORT", "14555"))
+CONN = sys.argv[1] if len(sys.argv) > 1 else f"udpout:{BCAST}:{UP_PORT}"
 CONFIG = "/opt/gnss-sdr.conf"
 RX = re.compile(r"Lat = ([\-\d.]+) \[deg\], Long = ([\-\d.]+) \[deg\], "
                 r"Height = ([\-\d.]+)")
@@ -51,10 +57,13 @@ print(f"[sdr2gps] 디코드 완료: {len(positions)}개 → 중앙값 "
       f"{lat:.6f},{lon:.6f},{alt:.1f}m", flush=True)
 print(f"[sdr2gps] GPS_INPUT 공급 시작 (5Hz, {CONN})", flush=True)
 
-m = mavutil.mavlink_connection(CONN, source_system=255, source_component=201)
-m.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
-                     mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
-m.wait_heartbeat(timeout=20)
+m = mavutil.mavlink_connection(CONN, source_system=255, source_component=201,
+                               input=False)
+# 업링크 브로드캐스트 송출 허용
+try:
+    m.port.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+except Exception:
+    pass
 
 lat_e7, lon_e7 = int(lat * 1e7), int(lon * 1e7)
 while True:

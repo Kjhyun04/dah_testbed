@@ -4,7 +4,7 @@
 v0 방향(환경→채널→로그뷰어)의 마지막 산출물.
 
 ## 구성
-- `server.py` — MAVLink(라우터 14554)·채널 상태(`/ctrl`) 수집 → `/state`(JSON), `/`(페이지).
+- `server.py` — MAVLink(다운링크 브로드캐스트 14550 수동 수신)·채널 상태(`/ctrl`) 수집 → `/state`(JSON), `/`(페이지).
 - `index.html` — 패널(기체/GPS/C2/페이로드) + 궤적 캔버스 + 이벤트 로그. 1초 폴링.
 - 컨테이너 `dah-logviewer` (172.28.0.80), 호스트 **http://localhost:8080**.
 

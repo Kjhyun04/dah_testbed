@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """M0 텔레메트리 점검.
 
-라우터의 UDP 14551 엔드포인트를 통해 HEARTBEAT / 위치 / 자세 텔레메트리가
-정상 수신되는지 확인한다. (라우터 UdpEndpoint=Server 이므로 우리가 먼저
-패킷을 보내 학습시킨다 → udpout 사용.)
+다운링크 브로드캐스트(14550)에서 HEARTBEAT / 위치 / 자세 텔레메트리가 정상
+수신되는지 확인한다. 업링크(14555)로 GCS 하트비트·스트림 요청을 송신한다
+(scripts/bcastlink.py 헬퍼).
 
-사용:
-    pip install pymavlink
-    python scripts/check_telemetry.py [conn]
-    # 기본 conn = udpout:127.0.0.1:14551
+사용 (tools 컨테이너 내부):
+    docker compose exec tools python scripts/check_telemetry.py
 """
 import sys
 import time
@@ -20,12 +18,14 @@ try:
 except Exception:
     pass
 
-CONN = sys.argv[1] if len(sys.argv) > 1 else "udpout:127.0.0.1:14551"
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bcastlink  # noqa: E402
 
-print(f"[*] connecting {CONN}")
-m = mavutil.mavlink_connection(CONN, source_system=255, source_component=240)
+print("[*] connecting (브로드캐스트: 다운링크 수신 / 업링크 송신)")
+m = bcastlink.connect(255, 240)
 
-# 라우터(Server 모드)에 우리 존재를 학습시키기 위해 heartbeat 송신
+# 업링크 브로드캐스트로 GCS 하트비트 송신
 m.mav.heartbeat_send(
     mavutil.mavlink.MAV_TYPE_GCS,
     mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)

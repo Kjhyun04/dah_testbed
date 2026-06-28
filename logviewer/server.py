@@ -11,7 +11,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pymavlink import mavutil
 
-CONN = os.environ.get("CONN", "udpout:172.28.0.20:14554")
+# 브로드캐스트 전환(P-19): 다운링크 방사를 수동 수신(도청과 동일 경로).
+CONN = os.environ.get("CONN", "udpin:0.0.0.0:14550")
 CTRL = os.environ.get("CTRL", "/ctrl")
 HTML = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "index.html"), encoding="utf-8").read()

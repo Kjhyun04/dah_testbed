@@ -15,7 +15,22 @@ SR0_RAW_SENS     2
 # 참고: MAVLink v2 서명은 파라미터가 아니라 SETUP_SIGNING 메시지로 활성화한다.
 #       ground/signing/setup_signing.py 사용.
 
+# Gazebo SITL 루프레이트 — Gazebo 물리 스텝(dah_world.sdf max_step_size=0.004=250Hz).
+# 기본 400Hz면 "Arm: Main loop slow"로 arm 거부. GPU 미통과 + GUI(-g)/카메라 소프트웨어
+# 렌더가 CPU를 점유해 실측 루프율이 ~166Hz까지 떨어지므로(부하 변동), 목표를 100으로 낮춰
+# 안정 무장을 보장한다(실측 ≫ 100 목표). 비행제어 충실도는 낮아짐 — GPU 통과(HW 렌더) 또는
+# GZ_HEADLESS=1(GUI 끔)로 CPU 확보 시 200~400으로 상향 권장.
+SCHED_LOOP_RATE  100
+
 # GPS 채널(외부화) — A1: GPS를 매질(gnss 컨테이너) 경유로 받는다.
 # 내부 SIM GPS 비활성 + 외부 GPS_INPUT 모드. gnss 서비스가 GPS를 공급해야 fix를 얻는다.
 SIM_GPS_DISABLE  1
 GPS_TYPE         14
+
+# 배터리 Failsafe 비활성화 (P-16) — 공격 실습 중 배터리 소진으로 인한
+# 의도치 않은 Failsafe 발동을 막아 '공격 효과'와 '배터리 효과'를 분리한다.
+# SIM_BATT_VOLTAGE를 만충 전압으로 고정하고 저전압/위험전압 임계·FS를 끈다.
+FS_BATT_ENABLE   0
+BATT_LOW_VOLT    0
+BATT_CRT_VOLT    0
+SIM_BATT_VOLTAGE 12.6

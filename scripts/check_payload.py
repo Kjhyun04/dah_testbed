@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """페이로드 채널 검증 — 카메라 컴포넌트(MAVLink) + KLV(ST0601) 수신·디코드.
 
-(1) 라우터(14551)에서 compid=100(카메라) 메시지가 보이는지
-(2) KLV(UDP 14580)를 받아 ST0601 센서 위경도가 디코드되는지
+(1) 다운링크 브로드캐스트(14550)에서 compid=100(카메라) 메시지가 보이는지
+(2) KLV(dahnet 브로드캐스트 14580)를 받아 ST0601 센서 위경도가 디코드되는지
+tools 컨테이너 내부에서 실행: docker compose exec tools python scripts/check_payload.py
 """
 import socket
 import sys
@@ -14,9 +15,12 @@ try:
 except Exception:
     pass
 
-# (1) 카메라 컴포넌트 MAVLink 확인
-m = mavutil.mavlink_connection("udpout:127.0.0.1:14551",
-                               source_system=255, source_component=253)
+# (1) 카메라 컴포넌트 MAVLink 확인 (브로드캐스트 다운링크)
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bcastlink  # noqa: E402
+
+m = bcastlink.connect(255, 253)
 m.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
                      mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
 m.wait_heartbeat(timeout=15)

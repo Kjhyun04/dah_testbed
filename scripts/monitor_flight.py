@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """SITL 비행 상태 라이브 모니터.
 
-QGC에서 ARM / Takeoff 를 누르는 동안 이 스크립트를 띄워두면,
-그 명령이 SITL 물리에 반영되는지(armed 비트, 고도, 상승률, throttle)를
-텔레메트리로 직접 확인할 수 있다.
+gcs_cli.py 로 ARM / Takeoff 하는 동안 이 스크립트를 띄워두면, 그 명령이 SITL
+물리에 반영되는지(armed 비트, 고도, 상승률, throttle)를 다운링크 텔레메트리로
+직접 확인할 수 있다.
 
-사용:
-    python scripts/monitor_flight.py [conn] [seconds]
-    # 기본 conn = udpout:127.0.0.1:14551, seconds = 20
+사용 (tools 컨테이너 내부):
+    docker compose exec tools python scripts/monitor_flight.py [seconds]
+    # seconds = 20(기본)
 """
 import sys
 import time
@@ -18,13 +18,16 @@ try:
 except Exception:
     pass
 
-CONN = sys.argv[1] if len(sys.argv) > 1 else "udpout:127.0.0.1:14551"
-DUR = float(sys.argv[2]) if len(sys.argv) > 2 else 20.0
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bcastlink  # noqa: E402
 
-m = mavutil.mavlink_connection(CONN, source_system=255, source_component=241)
+DUR = float(sys.argv[1]) if len(sys.argv) > 1 else 20.0
+
+m = bcastlink.connect(255, 241)
 m.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
                      mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
-print(f"[*] {CONN} 연결, heartbeat 대기 ...")
+print("[*] 브로드캐스트 연결, heartbeat 대기 ...")
 if m.wait_heartbeat(timeout=20) is None:
     print("[!] HEARTBEAT 없음"); sys.exit(1)
 m.mav.request_data_stream_send(m.target_system, m.target_component,

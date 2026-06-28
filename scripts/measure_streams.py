@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """SITL이 실제로 내보내는 MAVLink 메시지·레이트·대역폭 측정.
 
-QGC가 연결된 상태(또는 단독)에서 라우터 엔드포인트로 흘러오는 텔레메트리를
-일정 시간 수집해 메시지 종류별 빈도(Hz)·바이트·플레인 분류를 산출한다.
-이 결과를 3-plane 정상 트래픽 명세(#2)의 *측정 기반* 근거로 사용한다.
+다운링크 브로드캐스트(14550)로 흘러오는 텔레메트리를 일정 시간 수집해 메시지
+종류별 빈도(Hz)·바이트·플레인 분류를 산출한다. 3-plane 정상 트래픽 명세(#2)의
+*측정 기반* 근거로 사용한다.
 
-사용:
-    python scripts/measure_streams.py [conn] [seconds] [--request]
-    # 기본 conn = udpout:127.0.0.1:14551, seconds = 15
+사용 (tools 컨테이너 내부):
+    docker compose exec tools python scripts/measure_streams.py [seconds] [--request]
+    # seconds = 15(기본)
     # --request : 측정 클라이언트가 직접 ALL 스트림을 요청(레이트 상한 관찰용)
 """
 import sys
@@ -20,10 +20,13 @@ try:
 except Exception:
     pass
 
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bcastlink  # noqa: E402
+
 args = [a for a in sys.argv[1:] if a != "--request"]
 REQUEST = "--request" in sys.argv
-CONN = args[0] if len(args) > 0 else "udpout:127.0.0.1:14551"
-DUR = float(args[1]) if len(args) > 1 else 15.0
+DUR = float(args[0]) if len(args) > 0 else 15.0
 
 # 플레인 분류 (C2 / 텔레메트리 / 페이로드)
 C2 = {"COMMAND_LONG", "COMMAND_INT", "COMMAND_ACK", "SET_MODE",
@@ -44,10 +47,10 @@ def plane(t):
     return "TELEMETRY"
 
 
-m = mavutil.mavlink_connection(CONN, source_system=255, source_component=242)
+m = bcastlink.connect(255, 242)
 m.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
                      mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
-print(f"[*] {CONN} 연결, heartbeat 대기 ...")
+print("[*] 브로드캐스트 연결, heartbeat 대기 ...")
 if m.wait_heartbeat(timeout=20) is None:
     print("[!] HEARTBEAT 없음"); sys.exit(1)
 

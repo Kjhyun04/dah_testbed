@@ -15,7 +15,10 @@ try:
 except Exception:
     pass
 
-CONN = sys.argv[1] if len(sys.argv) > 1 else "udpout:127.0.0.1:14551"
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bcastlink  # noqa: E402
+
 results = []
 
 
@@ -24,7 +27,7 @@ def rec(name, status, detail=""):
     print(f"[{status:^4}] {name}{(' — ' + detail) if detail else ''}")
 
 
-m = mavutil.mavlink_connection(CONN, source_system=255, source_component=250)
+m = bcastlink.connect(255, 250)
 m.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
                      mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
 if m.wait_heartbeat(timeout=20) is None:

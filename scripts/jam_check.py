@@ -15,9 +15,12 @@ try:
 except Exception:
     pass
 
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bcastlink  # noqa: E402
+
 DUR = float(sys.argv[1]) if len(sys.argv) > 1 else 8.0
-m = mavutil.mavlink_connection("udpout:127.0.0.1:14551",
-                               source_system=255, source_component=252)
+m = bcastlink.connect(255, 252)
 m.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
                      mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
 m.wait_heartbeat(timeout=15)

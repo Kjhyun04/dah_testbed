@@ -1,0 +1,63 @@
+<?xml version="1.0" ?>
+<!-- DAH 테스트베드 Gazebo 월드 (P-15 물리엔진) -->
+<!-- ArduPilot SITL ↔ ardupilot_gazebo 플러그인(iris_with_gimbal)을 연동한다. -->
+<!-- 비행역학/센서(IMU·baro)는 Gazebo가, GPS는 외부 채널(gnss, GPS_INPUT)이 담당. -->
+<!-- iris_with_gimbal = iris_with_standoffs(ArduPilotPlugin) + gimbal_small_3d(카메라).  -->
+<!-- 카메라 GstCameraPlugin은 gimbal_small_3d 서브모델에 있고 start-sitl.sh가 런타임에  -->
+<!-- RTP 목적지(<udp_host>/<udp_port> = CAM_HOST:CAM_PORT)를 주입한다 (P-25).            -->
+<sdf version="1.9">
+  <world name="dah">
+    <!-- 물리 스텝: 250Hz (ArduPilot JSON FDM 권장값). real_time_factor=1 → 실시간 -->
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <!-- 카메라 센서 렌더링(P-25). Windows/Docker엔 GPU 미통과 → 소프트웨어 GL(ogre2). -->
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-navsat-system" name="gz::sim::systems::NavSat"/>
+
+    <scene>
+      <ambient>1.0 1.0 1.0</ambient>
+      <background>0.7 0.8 0.9</background>
+      <sky/>
+    </scene>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- 인라인 지면 (Fuel 의존 회피: 오프라인 빌드/실행 보장) -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>2000 2000</size></plane></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>2000 2000</size></plane></geometry>
+          <material>
+            <ambient>0.3 0.5 0.3 1</ambient>
+            <diffuse>0.3 0.5 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ArduPilotPlugin + 카메라/짐벌은 이 모델 SDF에 내장(ardupilot_gazebo 제공) -->
+    <include>
+      <uri>model://iris_with_gimbal</uri>
+      <pose>0 0 0.195 0 0 0</pose>
+    </include>
+  </world>
+</sdf>

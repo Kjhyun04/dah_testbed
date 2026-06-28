@@ -6,7 +6,8 @@ LAT=${LAT:-37.5665}
 LON=${LON:-126.9780}
 ALT=${ALT:-30}
 DUR=${DUR:-180}
-CONN=${CONN:-udpout:172.28.0.20:14552}
+# 업링크 브로드캐스트(c2channel 면제 전달 → air). router 제거 반영.
+CONN=${CONN:-udpout:${BCAST:-172.28.255.255}:${UP_PORT:-14555}}
 
 cd /opt/gps-sdr-sim
 EPH=$(ls brdc*.*n 2>/dev/null | head -1)
