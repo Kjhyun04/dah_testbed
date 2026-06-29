@@ -5,6 +5,48 @@
 
 ---
 
+## 변경 이력 — 2026-06-29: MAVLink v2 업링크 서명 브로드캐스트 적응 (§9-B 보안배선 1순위)
+
+§9 "다음 세션 시작점 — 🔧 MAVLink 서명 브로드캐스트 배선" 구현. 결정(대화):
+**토글식 강제**(`SIGN_ENFORCE` env: 기본 관용=무서명 수용 / 강제=무서명 거부) +
+**업링크만**(지상→air 명령 인증, 다운링크 텔레는 평문 도청 유지) +
+**정당 도구는 항상 서명**.
+
+**구현 (코드)**
+- **공유 헬퍼 `scripts/mavsign.py`(신규)**: `SIGNING_PASSPHRASE`(SHA-256)→32B 공유키 파생,
+  `apply(conn, link_id)`로 업링크 발신 서명. 서명은 MAVLink2 전용이라 `ensure_v2()`가
+  연결 다이얼렉트를 v2 로 강제(env 누락 시에도 무서명 누출 방지 — 보안 footgun 차단).
+- **`scripts/bcastlink.py`**: tx 생성 후 `mavsign.apply` 호출 → **bcastlink 경유 전 도구
+  (gcs_cli·verify_all·check_payload·jam_check 등)가 자동 서명**. `link_id=src_comp`로
+  도구별 독립 스트림(재생방지 타임스탬프 충돌 방지).
+- **`rf/gnss_medium.py`·`rf/sdr/sdr_to_gps.py`**: 자체 tx(GPS_INPUT 송출)에 동일 규약 서명.
+  강제 시 ArduPilot unsigned 화이트리스트(RADIO_STATUS·GPS_RTCM_DATA)엔 GPS_INPUT이 없어
+  서명 필수. `MAVLINK20=1`을 pymavlink import 전 설정해 v2 발신.
+- **`scripts/setup_signing.py`(신규)**: VSM 서명 종단점(255/195)으로서 FC 강제 토글 —
+  `on`(SETUP_SIGNING 전송 → accept_unsigned off, 무서명 거부) / `off`(영키 전송) /
+  `status`(서명·무서명 명령 응답 비교로 ENFORCED/PERMISSIVE 진단). 점대점 시절
+  `ground/signing/setup_signing.py`(host:14551)는 이전됨(이력 보존 스텁).
+- **compose**: `x-signing` 앵커(`MAVLINK20`·`SIGNING_PASSPHRASE`·`SIGN_OUTGOING`·`SIGN_ENFORCE`)를
+  업링크 송신자 **tools·gnss·sdr**에 주입. c2channel은 `get_msgbuf()` 원본 바이트 패스스루라
+  서명 트레일러가 손상 없이 통과(허브 수정 불필요). `.env.example`·README §3 갱신.
+
+**검증 (2026-06-29, 호스트 pymavlink 2.4.49 격리 테스트)** — 🟢 암호 경로 통과.
+- 키 파생 규약 일치: `mavsign` == gnss/sdr 인라인(동일 SHA-256).
+- v1 파서가 v2 서명 프레임 정상 파싱 확인 → **c2channel/logviewer(v1) 다운링크 중계 안전**.
+- encode→decode 격리(ArduPilot 등가): **올바른키=수용(goodsig)** / **틀린키=거부(badsig+reject)** /
+  **무서명=거부(reject, accept_unsigned off 모사)**. `SIGN_OUTGOING=0` 시 무서명 발신 확인.
+- compose config 유효 + 서명 env가 tools·gnss·sdr 3서비스에 주입 확인.
+- 🟡 **라이브 미검증**: 실제 ArduPilot FC가 브로드캐스트 매질에서 무서명 거부하는 end-to-end는
+  전체 스택 빌드 필요(다음 세션/사용자). ArduPilot accept_unsigned 펌웨어 동작은 기지(旣知).
+
+**남은 주의** — `setup_signing.py off`는 영키 전송(best-effort); 확실한 리셋은
+`docker compose up -d --force-recreate air`(SITL eeprom 초기화). 강제 ON 상태에선 모든
+정당 도구가 같은 `SIGNING_PASSPHRASE`를 공유해야 함(불일치 시 거부 — status로 진단).
+
+> 형상: 위 변경 전부 working tree(미커밋). `scripts/mavsign.py`·`scripts/setup_signing.py` 신규.
+
+---
+
 ## 변경 이력 — 2026-06-28(b): Gazebo Harmonic 물리엔진 통합 (A 묶음)
 
 §9-A "Gazebo 묶음" 구현. 결정: **Gazebo Harmonic + ardupilot_gazebo**, **air 컨테이너에
@@ -207,7 +249,7 @@ dah/
               params/m0-baseline.parm             # 배터리 FS 비활성·외부 GPS
     ground/
       mavlink-router/ Dockerfile, main.conf                        # 라우터(미사용, 참조용 보존)
-      signing/ setup_signing.py                                    # MAVLink v2 서명(VSM 자리)
+      signing/ setup_signing.py                                    # [이전됨] → scripts/setup_signing.py
     rf/
       gnss_medium.py                  # GPS 채널 A1 (라이브, GPS_SOURCE 스위치)
       README.md                       # 무선 채널(GPS A / C2 B) 문서
@@ -219,6 +261,7 @@ dah/
     tools/    Dockerfile                                           # 지상 도구 컨테이너(진단·제어 실행)
     scripts/  check_telemetry.py measure_streams.py monitor_flight.py bcastlink.py
               verify_all.py jam_check.py check_payload.py check_video.py
+              mavsign.py setup_signing.py                          # MAVLink v2 업링크 서명(공유키+FC 강제 토글)
     docs/  (설계 HTML/md 은 _excluded/ 로 분리 — README §7 참조)
 ```
 ※ `testbed/DAH2026_테스트베드_구성설계.html` 는 기존 파일(내가 만들지 않음, 미사용).
@@ -315,18 +358,22 @@ VFR_HUD 추종으로 해결. → 비행 실습 가능 상태.
 
 | 구분 | 항목 | 이 머신(GPU無 SW Docker) |
 |---|---|---|
-| 🔧 보안배선 | **MAVLink 서명 브로드캐스트 적응** | ✅ 가능 — **1순위(보안 실습 직결)** |
-| 🪖 군용심화(#3) | STANAG 4586 DLI · VSM · LOI 권한/단계탈취 | ✅ 가능(프로토콜·로직 계층) |
+| 🔧 보안배선 | **MAVLink 서명 브로드캐스트 적응** | ✅ **완료**(2026-06-29, 암호경로 검증 / 라이브 미검증) |
+| 🪖 군용심화(#3) | STANAG 4586 DLI · VSM · LOI 권한/단계탈취 | ✅ 가능 — **다음 1순위**(서명 위에 구축) |
 | ➕ 확장(D) | UGV(Rover) · STANAG 4609 · BVLOS 다운레이트 · A2 재검증 | ✅ 가능 |
 | 📡 충실도 | 소프트 PHY 모델(전력·거리·SNR·J/S 계산) | ✅ 부분 가능 |
 | 🟡 환경제약 | 카메라 실영상 · 400Hz 비행충실도 | ❌ GPU 필요(패스스루 시 가능) |
 | 🔩 HW | Track H(실 SDR) · 진짜 RF 방사 | ❌ 하드웨어 필요 |
 | 🚫 사용자몫 | attacker/ 도구·공격 자동화 | 의도적 미구축(환경만 제공) |
 
-> **권장 출발점: 🔧 MAVLink 서명 브로드캐스트 배선.** `setup_signing.py`(현재 점대점 `host:14551`
-> 전제)를 `bcastlink` 기반으로 적응 → 업링크 14555 서명. 주의: `accept_unsigned` off 시 무서명 정당
-> 도구(verify_all·gcs_cli)도 차단되므로 **키 일관 적용** 또는 데모 시나리오 한정 운용 필요.
-> 이후 🪖 C(군용 심화: VSM 장악→유효 서명 명령 발행, LOI 단계 탈취)로 확장.
+> **✅ 🔧 MAVLink 서명 브로드캐스트 배선 — 완료(2026-06-29).** `scripts/mavsign.py`(공유키)+
+> `scripts/setup_signing.py`(FC 강제 토글 on/off/status)로 구현. 토글식 강제(`SIGN_ENFORCE`)·
+> 업링크만·정당 도구 항상 서명. 키 일관 적용은 `SIGNING_PASSPHRASE` 공유로 보장(status로 진단).
+> 상세는 상단 「변경 이력 — MAVLink v2 업링크 서명」 참조.
+>
+> **권장 다음 출발점: 🪖 군용 심화(#3).** 서명 위에 VSM 장악→유효 서명 명령 발행→LOI 단계
+> 탈취를 구축. 서명 종단점(VSM, 255/195)이 이미 `setup_signing.py`에 자리잡음 → 키 탈취
+> 시나리오의 토대 완성.
 
 **참고:** "A·F는 Docker 불가"가 아니라 *이 머신에 GPU 가속이 없어서*다(GPU 패스스루면 카메라·400Hz
 가능). 진짜 막힌 건 카메라 실영상·400Hz(GPU)와 Track H(HW) 둘뿐. 쉬운 설명은 `_excluded/testbed/

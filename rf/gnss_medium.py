@@ -21,16 +21,33 @@ SITL 진짜위치를 GPS로 공급하는 '중립 채널' 컴포넌트.
 
 사용: python rf/gnss_medium.py <probe|setup|run|status>
 """
+import hashlib
 import os
 import socket
 import sys
 import time
+
+os.environ.setdefault("MAVLINK20", "1")   # 서명은 MAVLink2 전용 → v2 발신 강제
 from pymavlink import mavutil
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
     pass
+
+
+def _sign_tx(tx, link_id):
+    """업링크 서명(scripts/mavsign.py 와 동일 규약): SIGNING_PASSPHRASE 의 SHA-256
+    공유키로 발신 GPS_INPUT 에 서명한다. SIGN_OUTGOING=0 이면 무서명.
+    FC 서명 강제(accept_unsigned off) 시 GPS_INPUT 도 서명돼야 GPS 가 유지된다
+    (ArduPilot unsigned 화이트리스트엔 GPS_INPUT 이 없음)."""
+    if str(os.environ.get("SIGN_OUTGOING", "1")).strip().lower() in (
+            "0", "", "false", "no", "off"):
+        return False
+    pp = os.environ.get("SIGNING_PASSPHRASE", "dah-m0-shared-secret-change-me")
+    key = hashlib.sha256(pp.encode()).digest()
+    tx.setup_signing(key, sign_outgoing=True, link_id=int(link_id) & 0xFF)
+    return True
 
 CMD = sys.argv[1] if len(sys.argv) > 1 else "probe"
 
@@ -56,6 +73,8 @@ def connect(src_comp=200):
     tx.port.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     tx.target_system = 1
     tx.target_component = 1
+    if _sign_tx(tx, src_comp):
+        print(f"[gnss] 업링크 서명 ON (comp={src_comp})", flush=True)
     if rx.wait_heartbeat(timeout=20) is None:
         print("[!] HEARTBEAT 없음 (다운링크 브로드캐스트 미수신)"); sys.exit(1)
     return rx, tx

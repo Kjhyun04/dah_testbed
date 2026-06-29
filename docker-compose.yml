@@ -14,6 +14,15 @@ x-bcast: &bcast
   DOWN_PORT: "14550"
   UP_PORT: "14555"
 
+# MAVLink v2 업링크 서명 파라미터 (업링크 송신자: tools·gnss·sdr 공유)
+# 모든 컨테이너가 같은 SIGNING_PASSPHRASE 를 써야 서명이 일관된다(키 일관 적용).
+# 강제(무서명 거부)는 런타임에 켠다: tools 의 scripts/setup_signing.py on
+x-signing: &signing
+  MAVLINK20: "1"                       # 서명은 MAVLink2 전용 → pymavlink v2 발신 강제
+  SIGNING_PASSPHRASE: ${SIGNING_PASSPHRASE:-dah-m0-shared-secret-change-me}
+  SIGN_OUTGOING: ${SIGN_OUTGOING:-1}   # 0이면 무서명 발신(무서명 거부 관측용)
+  SIGN_ENFORCE: ${SIGN_ENFORCE:-0}     # setup_signing 무인자 기본(on/off)
+
 services:
   # ── 공중 계층: ArduPilot SITL + Gazebo Harmonic (ArduCopter) ─────
   # P-15 물리엔진 + P-23 VNC GUI + P-24 SITL↔Gazebo(localhost FDM) + P-25 카메라.
@@ -65,7 +74,7 @@ services:
     depends_on: [c2channel]
     command: ["run"]
     environment:
-      <<: *bcast
+      <<: [*bcast, *signing]
       GPS_SOURCE: ${GPS_SOURCE:-A1}   # A1 외 값이면 대기(미송출) — A2와 충돌 방지
     restart: unless-stopped
     networks:
@@ -83,7 +92,7 @@ services:
     profiles: ["iq"]
     depends_on: [c2channel]
     environment:
-      <<: *bcast
+      <<: [*bcast, *signing]
       LAT: ${IQ_LAT:-37.5665}
       LON: ${IQ_LON:-126.9780}
       ALT: ${IQ_ALT:-30}
@@ -150,7 +159,7 @@ services:
     container_name: dah-tools
     depends_on: [c2channel]
     environment:
-      <<: *bcast
+      <<: [*bcast, *signing]
     volumes:
       - ./scripts:/work/scripts:ro
       - ./gcs_cli.py:/work/gcs_cli.py:ro

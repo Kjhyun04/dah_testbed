@@ -12,7 +12,14 @@ wait_heartbeat / target_system)와 거의 동일한 인터페이스를 제공한
 """
 import os
 import socket
+import sys
 from pymavlink import mavutil
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import mavsign  # 업링크 서명 공유 헬퍼(같은 scripts/ 디렉터리)
+except Exception:    # pragma: no cover - 서명 모듈 부재 시 무서명 진행
+    mavsign = None
 
 BCAST = os.environ.get("BCAST", "172.28.255.255")
 DOWN_PORT = int(os.environ.get("DOWN_PORT", "14550"))
@@ -28,6 +35,14 @@ class BcastLink:
             f"udpout:{BCAST}:{UP_PORT}",
             source_system=src_sys, source_component=src_comp, input=False)
         self.tx.port.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        # 업링크 서명: 발신(지상→air) 메시지에 공유키 서명을 붙인다(기본 on).
+        # link_id 를 src_comp 로 구분 → 도구별 독립 서명 스트림.
+        self.signed = False
+        if mavsign is not None:
+            try:
+                self.signed = mavsign.apply(self.tx, link_id=src_comp)
+            except Exception as e:   # 서명 실패해도 링크는 동작(무서명)
+                print(f"[bcastlink] 서명 적용 실패(무서명 진행): {e}")
         self.mav = self.tx.mav        # .mav.*_send → 업링크 브로드캐스트로 송신
         self.target_system = 1
         self.target_component = 1

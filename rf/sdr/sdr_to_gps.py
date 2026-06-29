@@ -17,6 +17,8 @@ import statistics
 import subprocess
 import sys
 import time
+
+os.environ.setdefault("MAVLINK20", "1")   # 서명은 MAVLink2 전용 → v2 발신 강제
 from pymavlink import mavutil
 
 try:
@@ -64,6 +66,16 @@ try:
     m.port.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 except Exception:
     pass
+
+# 업링크 서명(scripts/mavsign.py 규약): FC 서명 강제 시 A2 의 GPS_INPUT 도 서명돼야
+# GPS 가 유지된다. SIGN_OUTGOING=0 이면 무서명.
+if str(os.environ.get("SIGN_OUTGOING", "1")).strip().lower() not in (
+        "0", "", "false", "no", "off"):
+    import hashlib
+    _pp = os.environ.get("SIGNING_PASSPHRASE", "dah-m0-shared-secret-change-me")
+    m.setup_signing(hashlib.sha256(_pp.encode()).digest(),
+                    sign_outgoing=True, link_id=201)
+    print("[sdr2gps] 업링크 서명 ON (comp=201)", flush=True)
 
 lat_e7, lon_e7 = int(lat * 1e7), int(lon * 1e7)
 while True:
