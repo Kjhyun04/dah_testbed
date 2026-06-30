@@ -15,6 +15,8 @@ _data/
 # 단, 앱 UI 코드인 logviewer/index.html 은 추적 유지
 *.html
 !logviewer/index.html
+# testbed-4g 운영가이드/아키텍처 HTML 은 추적(셀룰러 트랙 문서)
+!testbed-4g/docs/*.html
 
 # --- 환경 변수 ---
 .env

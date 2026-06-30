@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>testbed-4g — 아키텍처 &amp; 운영 가이드 (multi-eNB 최종형)</title>
+<style>
+  :root{
+    --bg:#0e1117; --panel:#161b22; --panel2:#1c2230; --line:#2b3340;
+    --ink:#e6edf3; --muted:#9aa7b4; --dim:#6b7686;
+    --blue:#4d8bf0; --teal:#2ec4b6; --orange:#f08c4d; --purple:#a98bf0;
+    --amber:#f0c24d; --red:#f0524d; --green:#3fb950; --chip:#222b38;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Roboto,"Malgun Gothic",sans-serif;line-height:1.65;font-size:15px}
+  .wrap{max-width:1240px;margin:0 auto;padding:40px 28px 80px}
+  header.doc{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:24px}
+  header.doc h1{font-size:29px;margin:0 0 6px;letter-spacing:-.5px}
+  header.doc .sub{color:var(--muted)}
+  header.doc .meta{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px}
+  .pill{background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:3px 12px;color:var(--muted)}
+  .pill b{color:var(--ink)}
+  h2{font-size:21px;margin:40px 0 12px;padding-left:12px;border-left:4px solid var(--blue);letter-spacing:-.3px}
+  h3{font-size:16px;margin:22px 0 8px}
+  p{margin:10px 0} .lede{color:var(--muted)}
+  code{background:#1f2733;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12.5px;font-family:"SF Mono",Consolas,monospace;color:#cfe0ff}
+  .diagram{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;margin:16px 0;overflow-x:auto}
+  .diagram svg{display:block;margin:0 auto;min-width:1160px}
+  .cap{font-size:12.5px;color:var(--dim);text-align:center;margin:6px 0 2px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);justify-content:center;margin:8px 0}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:middle}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-weight:600} tr:nth-child(even) td{background:#12161d}
+  td.c{text-align:center;white-space:nowrap}
+  code.k{color:#9be7d8}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card.full{grid-column:1/3}
+  .card h4{margin:0 0 4px;font-size:15px}
+  .card .cmd{background:#0d1117;border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-family:"SF Mono",Consolas,monospace;font-size:12.5px;color:#cfe0ff;margin:8px 0;white-space:pre-wrap;overflow-x:auto}
+  .card .desc{font-size:13px;color:var(--muted)}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4)}
+  ol.steps{counter-reset:s;list-style:none;padding-left:0;margin:14px 0}
+  ol.steps li{position:relative;padding:10px 0 10px 44px;border-bottom:1px solid var(--line)}
+  ol.steps li:before{counter-increment:s;content:counter(s);position:absolute;left:0;top:10px;width:30px;height:30px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);color:var(--teal);font-weight:700;text-align:center;line-height:30px}
+  ol.steps li b{color:var(--ink)}
+  .note-box{background:#13202a;border:1px solid #1f3a44;border-radius:10px;padding:12px 16px;font-size:13.5px;color:#bfe3ec;margin:14px 0}
+  footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}.card.full{grid-column:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <h1>testbed-4g — 아키텍처 &amp; 운영 가이드</h1>
+  <div class="sub">multi-eNB 최종형 · Open5GS EPC + srsRAN(ZMQ) + ArduPilot MAVLink C2 · 전 게이트 실측 통과(2026-07-01)</div>
+  <div class="meta">
+    <span class="pill">구현 <b>로컬 Docker</b> (WSL2 + Docker Desktop)</span>
+    <span class="pill">근거 <b>Spiderweb</b> + <b>Sonaglio et al.</b> arXiv:2603.04662</span>
+    <span class="pill">멀티UE <b>multi-eNB</b> (브로커 회피)</span>
+    <span class="pill">역할경계 <b>인프라/배선만 — 공격은 사용자</b></span>
+  </div>
+</header>
+
+<!-- ───────────── 아키텍처 다이어그램 ───────────── -->
+<h2>1. 최종 아키텍처 (multi-eNB)</h2>
+<p class="lede">
+  <b>(eNB+UE) 쌍을 UE 수만큼</b> 띄워 멀티UE를 구현(GNU Radio 브로커 회피). 3 쌍 모두 같은 EPC에 S1AP 연결 →
+  같은 APN 풀(<code>192.168.100.0/24</code>)에서 <b>UE-to-UE 도달</b>(PGW hairpin) → C2·TM1 성립.
+  <b>GPS는 dahnet(비셀룰러)</b>로 분리 공급.
+</p>
+
+<div class="diagram">
+<svg viewBox="0 0 1220 920" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Malgun Gothic,sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8fa3b8"/></marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f0c24d"/></marker>
+    <marker id="at" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2ec4b6"/></marker>
+  </defs>
+
+  <!-- layer labels -->
+  <g font-size="11" fill="#6b7686" font-weight="700" letter-spacing="1">
+    <text x="24" y="126" transform="rotate(-90 24 126)">APP</text>
+    <text x="24" y="276" transform="rotate(-90 24 276)">UE</text>
+    <text x="24" y="420" transform="rotate(-90 24 420)">RAN</text>
+    <text x="24" y="690" transform="rotate(-90 24 690)">CORE / EPC</text>
+  </g>
+
+  <!-- ===== GPS lane (left, non-cellular) ===== -->
+  <rect x="44" y="80" width="158" height="360" rx="12" fill="#1c1a10" stroke="#f0c24d" stroke-dasharray="5 4" stroke-width="1.2"/>
+  <text x="123" y="102" text-anchor="middle" font-size="12" fill="#f0c24d" font-weight="700">채널 A · GPS</text>
+  <text x="123" y="117" text-anchor="middle" font-size="10" fill="#bda35a">dahnet (비셀룰러)</text>
+  <rect x="60" y="150" width="126" height="92" rx="9" fill="#262112" stroke="#f0c24d" stroke-width="1.2"/>
+  <text x="123" y="176" text-anchor="middle" font-size="12" fill="#f0e0a0" font-weight="700">gps_inject.py</text>
+  <text x="123" y="194" text-anchor="middle" font-size="10" fill="#cdbb78">dah4g-gps</text>
+  <text x="123" y="210" text-anchor="middle" font-size="10" fill="#cdbb78">172.28.0.160</text>
+  <text x="123" y="226" text-anchor="middle" font-size="10" fill="#cdbb78">GPS_INPUT @10Hz</text>
+  <path d="M186,250 C235,260 235,300 268,300" fill="none" stroke="#f0c24d" stroke-width="1.6" marker-end="url(#ag)"/>
+  <text x="150" y="300" font-size="9.5" fill="#d9c069">serial2:14560</text>
+  <text x="150" y="312" font-size="9.5" fill="#d9c069">(dahnet)</text>
+
+  <!-- ===== 3 pair lanes: UAV / GCS / ROGUE ===== -->
+  <!-- helper positions: centers 370 / 640 / 900 ; box x=270/540/800 w=200 -->
+  <!-- APP row -->
+  <rect x="270" y="92" width="200" height="74" rx="10" fill="#13243f" stroke="#4d8bf0" stroke-width="1.4"/>
+  <text x="370" y="118" text-anchor="middle" font-size="13" fill="#bcd4ff" font-weight="700">ArduPilot SITL</text>
+  <text x="370" y="135" text-anchor="middle" font-size="10.5" fill="#86a8df">arducopter --model quad</text>
+  <text x="370" y="151" text-anchor="middle" font-size="10" fill="#5f7fb0">dah4g-sitl · netns 공유↓</text>
+
+  <rect x="540" y="92" width="200" height="74" rx="10" fill="#13243f" stroke="#4d8bf0" stroke-width="1.4"/>
+  <text x="640" y="118" text-anchor="middle" font-size="13" fill="#bcd4ff" font-weight="700">GCS (지상국)</text>
+  <text x="640" y="135" text-anchor="middle" font-size="10.5" fill="#86a8df">pymavlink g1_gcs/g2_flight</text>
+  <text x="640" y="151" text-anchor="middle" font-size="10" fill="#5f7fb0">netns 공유↓</text>
+
+  <rect x="800" y="92" width="200" height="74" rx="10" fill="#2a1414" stroke="#f0524d" stroke-width="1.4"/>
+  <text x="900" y="118" text-anchor="middle" font-size="13" fill="#ffc2c0" font-weight="700">MAVLink 주입기</text>
+  <text x="900" y="135" text-anchor="middle" font-size="10.5" fill="#e08a87">TM1 (사용자 실행)</text>
+  <text x="900" y="151" text-anchor="middle" font-size="10" fill="#b86b68">netns 공유↓</text>
+
+  <!-- netns 공유 dashed -->
+  <path d="M370,166 L370,232" stroke="#4d6fa0" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a)"/>
+  <path d="M640,166 L640,232" stroke="#4d6fa0" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a)"/>
+  <path d="M900,166 L900,232" stroke="#a0524d" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a)"/>
+
+  <!-- UE row -->
+  <rect x="270" y="232" width="200" height="86" rx="10" fill="#10302c" stroke="#2ec4b6" stroke-width="1.4"/>
+  <text x="370" y="257" text-anchor="middle" font-size="13" fill="#a8efe6" font-weight="700">uav-ue (srsue_zmq)</text>
+  <text x="370" y="275" text-anchor="middle" font-size="10.5" fill="#6fc7bd">tun_srsue 192.168.100.2</text>
+  <text x="370" y="291" text-anchor="middle" font-size="10" fill="#4f9a91">IMSI …895 · EPC망+dahnet</text>
+  <text x="370" y="307" text-anchor="middle" font-size="10" fill="#4f9a91">enb_id 0x19B</text>
+
+  <rect x="540" y="232" width="200" height="86" rx="10" fill="#10302c" stroke="#2ec4b6" stroke-width="1.4"/>
+  <text x="640" y="257" text-anchor="middle" font-size="13" fill="#a8efe6" font-weight="700">gcs-ue (srsue_zmq2)</text>
+  <text x="640" y="275" text-anchor="middle" font-size="10.5" fill="#6fc7bd">tun_srsue 192.168.100.3</text>
+  <text x="640" y="291" text-anchor="middle" font-size="10" fill="#4f9a91">IMSI …896 · EPC망</text>
+  <text x="640" y="307" text-anchor="middle" font-size="10" fill="#4f9a91">enb_id 0x19C</text>
+
+  <rect x="800" y="232" width="200" height="86" rx="10" fill="#10302c" stroke="#f0524d" stroke-width="1.4"/>
+  <text x="900" y="257" text-anchor="middle" font-size="13" fill="#a8efe6" font-weight="700">rogue-ue (srsue_zmq3)</text>
+  <text x="900" y="275" text-anchor="middle" font-size="10.5" fill="#6fc7bd">tun_srsue 192.168.100.4</text>
+  <text x="900" y="291" text-anchor="middle" font-size="10" fill="#4f9a91">IMSI …897 · 동거 UE</text>
+  <text x="900" y="307" text-anchor="middle" font-size="10" fill="#4f9a91">enb_id 0x19D</text>
+
+  <!-- C2 hairpin (UAV-UE <-> GCS-UE, logical) -->
+  <path d="M470,250 C505,250 505,250 540,250" stroke="#2ec4b6" stroke-width="2" marker-end="url(#at)" marker-start="url(#at)"/>
+  <text x="505" y="240" text-anchor="middle" font-size="9.5" fill="#2ec4b6">C2</text>
+
+  <!-- ZMQ UE->eNB -->
+  <path d="M370,318 L370,384" stroke="#8fa3b8" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M640,318 L640,384" stroke="#8fa3b8" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M900,318 L900,384" stroke="#8fa3b8" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="380" y="356" font-size="9.5" fill="#8fa3b8">ZMQ :2000/:2001</text>
+
+  <!-- RAN row -->
+  <rect x="270" y="384" width="200" height="66" rx="10" fill="#3a2410" stroke="#f08c4d" stroke-width="1.4"/>
+  <text x="370" y="410" text-anchor="middle" font-size="12.5" fill="#ffcf9c" font-weight="700">srsenb_zmq (eNB1)</text>
+  <text x="370" y="428" text-anchor="middle" font-size="10" fill="#cf9b66">PDCP 종단 · ZMQ vRF</text>
+  <rect x="540" y="384" width="200" height="66" rx="10" fill="#3a2410" stroke="#f08c4d" stroke-width="1.4"/>
+  <text x="640" y="410" text-anchor="middle" font-size="12.5" fill="#ffcf9c" font-weight="700">srsenb_zmq2 (eNB2)</text>
+  <text x="640" y="428" text-anchor="middle" font-size="10" fill="#cf9b66">PDCP 종단 · ZMQ vRF</text>
+  <rect x="800" y="384" width="200" height="66" rx="10" fill="#3a2410" stroke="#f08c4d" stroke-width="1.4"/>
+  <text x="900" y="410" text-anchor="middle" font-size="12.5" fill="#ffcf9c" font-weight="700">srsenb_zmq3 (eNB3)</text>
+  <text x="900" y="428" text-anchor="middle" font-size="10" fill="#cf9b66">PDCP 종단 · ZMQ vRF</text>
+
+  <!-- eNB -> EPC -->
+  <path d="M370,450 L430,556" stroke="#8fa3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <path d="M640,450 L600,556" stroke="#8fa3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <path d="M900,450 L770,556" stroke="#8fa3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="430" y="500" font-size="9.5" fill="#8fa3b8">S1AP/SCTP:36412</text>
+  <text x="430" y="512" font-size="9.5" fill="#8fa3b8">S1-U/GTP-U:2152</text>
+
+  <!-- EPC box -->
+  <rect x="180" y="558" width="840" height="282" rx="13" fill="#1a1430" stroke="#a98bf0" stroke-width="1.5"/>
+  <text x="202" y="582" font-size="13" fill="#cdbcff" font-weight="700">Open5GS EPC (슬림 9, CUPS)</text>
+  <text x="1000" y="582" text-anchor="end" font-size="10" fill="#8c7fb8">docker_open5gs_default · 172.22.0.0/16</text>
+
+  <!-- control plane -->
+  <rect x="202" y="598" width="150" height="60" rx="8" fill="#241a44" stroke="#a98bf0" stroke-width="1.2"/>
+  <text x="277" y="623" text-anchor="middle" font-size="12.5" fill="#d6c8ff" font-weight="700">MME</text>
+  <text x="277" y="640" text-anchor="middle" font-size="9.5" fill="#9c8fce">S1AP · S6a→HSS</text>
+  <rect x="366" y="598" width="120" height="60" rx="8" fill="#241a44" stroke="#a98bf0" stroke-width="1.2"/>
+  <text x="426" y="623" text-anchor="middle" font-size="12.5" fill="#d6c8ff" font-weight="700">HSS</text>
+  <text x="426" y="640" text-anchor="middle" font-size="9.5" fill="#9c8fce">가입자 인증</text>
+  <rect x="500" y="598" width="120" height="60" rx="8" fill="#241a44" stroke="#a98bf0" stroke-width="1.2"/>
+  <text x="560" y="623" text-anchor="middle" font-size="12.5" fill="#d6c8ff" font-weight="700">PCRF</text>
+  <text x="560" y="640" text-anchor="middle" font-size="9.5" fill="#9c8fce">정책</text>
+  <rect x="634" y="598" width="110" height="60" rx="8" fill="#1d2240" stroke="#7f8fd0" stroke-width="1.1"/>
+  <text x="689" y="623" text-anchor="middle" font-size="12" fill="#cdd6ff" font-weight="700">mongo</text>
+  <text x="689" y="640" text-anchor="middle" font-size="9.5" fill="#8b96c8">가입자 DB</text>
+  <rect x="758" y="598" width="110" height="60" rx="8" fill="#1d2240" stroke="#7f8fd0" stroke-width="1.1"/>
+  <text x="813" y="623" text-anchor="middle" font-size="12" fill="#cdd6ff" font-weight="700">webui</text>
+  <text x="813" y="640" text-anchor="middle" font-size="9.5" fill="#8b96c8">dbctl/9999</text>
+
+  <!-- user plane (CUPS) -->
+  <rect x="202" y="690" width="150" height="60" rx="8" fill="#1d2a3a" stroke="#5fb0d0" stroke-width="1.2"/>
+  <text x="277" y="715" text-anchor="middle" font-size="12" fill="#bfe3f0" font-weight="700">SGW-C</text>
+  <rect x="366" y="690" width="120" height="60" rx="8" fill="#1d2a3a" stroke="#5fb0d0" stroke-width="1.2"/>
+  <text x="426" y="715" text-anchor="middle" font-size="12" fill="#bfe3f0" font-weight="700">SGW-U</text>
+  <text x="426" y="732" text-anchor="middle" font-size="9.5" fill="#86b8cc">S1-U 종단</text>
+  <rect x="500" y="690" width="150" height="60" rx="8" fill="#1d2a3a" stroke="#5fb0d0" stroke-width="1.2"/>
+  <text x="575" y="715" text-anchor="middle" font-size="11.5" fill="#bfe3f0" font-weight="700">PGW-C/SMF</text>
+  <rect x="664" y="690" width="156" height="60" rx="8" fill="#1d2a3a" stroke="#5fb0d0" stroke-width="1.2"/>
+  <text x="742" y="713" text-anchor="middle" font-size="11.5" fill="#bfe3f0" font-weight="700">PGW-U/UPF</text>
+  <text x="742" y="730" text-anchor="middle" font-size="9.5" fill="#86b8cc">APN 풀 192.168.100/24</text>
+
+  <!-- PFCP internal -->
+  <path d="M352,720 L366,720" stroke="#5fb0d0" stroke-width="1.3" marker-end="url(#a)"/>
+  <text x="338" y="714" text-anchor="middle" font-size="8.5" fill="#7fb6cc">Sxa</text>
+  <path d="M650,720 L664,720" stroke="#5fb0d0" stroke-width="1.3" marker-end="url(#a)"/>
+  <text x="652" y="714" text-anchor="middle" font-size="8.5" fill="#7fb6cc">Sxb PFCP</text>
+  <!-- hairpin note -->
+  <text x="742" y="772" text-anchor="middle" font-size="9.5" fill="#86b8cc">UE↔UE hairpin (C2/TM1)</text>
+  <!-- S6a MME-HSS -->
+  <path d="M352,628 L366,628" stroke="#a98bf0" stroke-width="1.2" marker-end="url(#a)"/>
+</svg>
+</div>
+<div class="legend">
+  <span><i style="background:#4d8bf0"></i>APP (SITL/GCS/주입기)</span>
+  <span><i style="background:#2ec4b6"></i>UE / C2 (셀룰러, 192.168.100/24)</span>
+  <span><i style="background:#f08c4d"></i>RAN (eNB, ZMQ)</span>
+  <span><i style="background:#a98bf0"></i>EPC 코어 (172.22/16)</span>
+  <span><i style="background:#f0c24d"></i>GPS (dahnet, 172.28/16, 비셀룰러)</span>
+  <span><i style="background:#f0524d"></i>ROGUE (TM1)</span>
+</div>
+<div class="cap">multi-eNB 최종형 — (eNB+UE)×3 → 단일 EPC · C2=셀룰러 · GPS=dahnet 분리</div>
+
+<div class="note-box">
+  <b>왜 multi-eNB인가.</b> srsRAN ZMQ는 1 eNB=1 UE(가상 RF 파이프 1:1). 1 eNB에 N UE를 붙이려면 GNU Radio
+  브로커(샘플레이트·타이밍 정합 = 최대 난점)가 필요. 대신 <b>eNB를 UE 수만큼</b> 띄우면 각 쌍이 검증된 단일
+  UE 구성이라 안정적이고, 모두 같은 EPC에 붙으므로 UE-to-UE(C2/TM1)는 그대로 성립한다.
+</div>
+
+<!-- ───────────── 2. 컨테이너 역할 ───────────── -->
+<h2>2. 컨테이너 역할</h2>
+<table>
+  <thead><tr><th>컨테이너</th><th>이미지</th><th>역할</th><th>네트워크 / IP</th></tr></thead>
+  <tbody>
+    <tr><td><code>mongo</code></td><td>mongo:6.0</td><td>가입자/세션 DB</td><td>docker_open5gs_default 172.22.0.2</td></tr>
+    <tr><td><code>hss</code></td><td>docker_open5gs</td><td>가입자 인증(S6a Diameter)</td><td>172.22.0.3</td></tr>
+    <tr><td><code>mme</code></td><td>docker_open5gs</td><td>S1AP 시그널링·이동성·베어러 제어</td><td>172.22.0.9</td></tr>
+    <tr><td><code>smf</code> / <code>upf</code></td><td>docker_open5gs</td><td>PGW-C/PGW-U — 세션·사용자평면(IP 부여, APN 풀)</td><td>172.22.0.7 / .8</td></tr>
+    <tr><td><code>sgwc</code> / <code>sgwu</code></td><td>docker_open5gs</td><td>SGW 제어/사용자평면(S1-U GTP-U 종단)</td><td>172.22.0.5 / .6</td></tr>
+    <tr><td><code>pcrf</code></td><td>docker_open5gs</td><td>정책·과금</td><td>172.22.0.4</td></tr>
+    <tr><td><code>webui</code></td><td>docker_open5gs</td><td>가입자 등록 UI + <code>open5gs-dbctl</code></td><td>:9999 (admin/1423)</td></tr>
+    <tr><td><code>srsenb_zmq</code> ×3</td><td>docker_srslte</td><td>eNB(기지국) — PDCP 종단, ZMQ 가상 RF, MME에 S1AP</td><td>172.22.0.22 / .54 / .56</td></tr>
+    <tr><td><code>srsue_zmq</code> ×3</td><td>docker_srslte</td><td>UE(단말) — UAV/GCS/ROGUE, <code>tun_srsue</code> 종단</td><td>UE: 172.22.0.34 / .55 / .57 · tun: 192.168.100.2/.3/.4</td></tr>
+    <tr><td><code>dah4g-sitl</code></td><td>dah-testbed-air</td><td>ArduPilot 비행스택(SITL) — UAV-UE netns 공유</td><td>(uav-ue netns)</td></tr>
+    <tr><td><code>dah4g-gps</code></td><td>dah-testbed-air</td><td>GPS 주입기 — GPS_INPUT @10Hz(dahnet)</td><td>dah-testbed_dahnet 172.28.0.160</td></tr>
+    <tr><td>GCS / 주입기</td><td>dah-testbed-air</td><td>pymavlink — GCS 명령(g1_gcs/g2_flight) / TM1 주입(사용자)</td><td>(gcs-ue / rogue-ue netns)</td></tr>
+  </tbody>
+</table>
+
+<!-- ───────────── 3. 통신 구조 ───────────── -->
+<h2>3. 통신 구조 (프로토콜 · 포트 · 네트워크)</h2>
+<table>
+  <thead><tr><th>구간</th><th>프로토콜 / 포트</th><th>네트워크</th><th>의미</th></tr></thead>
+  <tbody>
+    <tr><td>UE ↔ eNB</td><td>ZMQ (TCP 2000/2001)</td><td class="c">컨테이너 직결</td><td>가상 RF(전파 대체). IP로 쌍 구분</td></tr>
+    <tr><td>eNB ↔ MME</td><td>S1AP / <b>SCTP 36412</b></td><td class="c">172.22/16</td><td>제어 시그널링(attach·베어러)</td></tr>
+    <tr><td>eNB ↔ SGW-U</td><td>S1-U GTP-U / UDP 2152</td><td class="c">172.22/16</td><td>사용자평면 터널(여기서 C2가 흐름·TM3 표면)</td></tr>
+    <tr><td>SGW-C↔U / PGW-C↔U</td><td>Sxa·Sxb PFCP / UDP 8805</td><td class="c">172.22/16</td><td>CUPS 제어(TM2 표면)</td></tr>
+    <tr><td>MME ↔ HSS</td><td>S6a Diameter / SCTP</td><td class="c">172.22/16</td><td>가입자 인증</td></tr>
+    <tr><td><b>UAV-UE ↔ GCS-UE (C2)</b></td><td>MAVLink / <b>UDP 14550</b></td><td class="c">192.168.100/24</td><td>C2 명령·텔레메트리. PGW hairpin(셀룰러). TM1 주입 대상</td></tr>
+    <tr><td><b>gps_inject ↔ SITL (GPS)</b></td><td>MAVLink GPS_INPUT / UDP 14560</td><td class="c">172.28/16 (dahnet)</td><td>외부 GPS @10Hz. <b>셀룰러 밖</b>. GPS 스푸핑 대상</td></tr>
+  </tbody>
+</table>
+<div class="note-box">
+  <b>3개 네트워크 분리.</b> ① 코어 <code>docker_open5gs_default</code> 172.22/16(EPC 내부) · ② C2/APN 풀 192.168.100/24(<code>tun_srsue</code>, <b>셀룰러</b>) · ③ <code>dah-testbed_dahnet</code> 172.28/16(<b>GPS, 비셀룰러</b>). 설계 원칙 "C2만 셀룰러, GPS는 직접 센서"가 라우팅으로 강제됨.
+</div>
+
+<!-- ───────────── 4. 사용 프로그램 ───────────── -->
+<h2>4. 사용 프로그램</h2>
+<table>
+  <thead><tr><th>프로그램</th><th>역할</th><th>비고</th></tr></thead>
+  <tbody>
+    <tr><td><b>Open5GS</b></td><td>4G EPC 코어(MME·HSS·SGW·PGW·PCRF, CUPS)</td><td>가입자 IP·베어러·시그널링</td></tr>
+    <tr><td><b>srsRAN_4G</b></td><td>eNB(srsenb) + UE(srsue), ZMQ 가상 RF</td><td>유지보수 모드(LTE 동작 정상)</td></tr>
+    <tr><td><b>ArduPilot SITL</b></td><td>비행 제어 스택(arducopter, 내부 quad 물리)</td><td>arm/takeoff/land·MAVLink 응답</td></tr>
+    <tr><td><b>pymavlink</b></td><td>GCS·주입기·GPS 주입기 MAVLink 발신/수신</td><td>g1_gcs/g2_flight/gps_inject</td></tr>
+    <tr><td><b>docker_open5gs</b> (herlesupreeth)</td><td>베이스 이미지·compose(EPC+srsRAN-ZMQ)</td><td>이미지: docker_open5gs / docker_srslte</td></tr>
+    <tr><td><b>Docker Desktop + WSL2</b></td><td>호스트(공유커널 sctp, /dev/net/tun)</td><td>EC2 대안 지원</td></tr>
+  </tbody>
+</table>
+
+<!-- ───────────── 5. 동작 과정 ───────────── -->
+<h2>5. 동작 과정 (환경 → 폐루프)</h2>
+<ol class="steps">
+  <li><b>호스트 준비</b> — WSL2 공유커널에 <code>sctp</code> 로드(MME S1AP 전제), <code>/dev/net/tun</code> 확인. <span class="desc">(00-local-prep)</span></li>
+  <li><b>EPC 기동</b> — docker_open5gs 빌드 → 코어 9서비스 <code>--no-deps</code> 기동 → MME가 S1AP(:36412)·S6a(HSS) 개방. <span class="desc">(10-epc-up)</span></li>
+  <li><b>가입자 등록</b> — UE의 IMSI/Ki/OPc를 HSS에 등록(OPc는 OP+Ki로 계산). 미일치면 attach 거부. <span class="desc">(provision · 30-add-ue)</span></li>
+  <li><b>UE attach ×3</b> — 각 srsue가 ZMQ로 자기 eNB에 동기(RACH) → eNB가 MME에 S1 Setup → 인증 → 기본 베어러 → <code>tun_srsue</code> IP(192.168.100.x). </li>
+  <li><b>UE-to-UE</b> — 같은 APN 풀이라 UPF hairpin으로 UE끼리 직접 IP 도달(C2·TM1 전제). ICMP+UDP14550 검증.</li>
+  <li><b>C2 over LTE</b> — SITL(UAV-UE netns)이 MAVLink를 <code>tun_srsue</code>로 GCS-UE에 송출 → 셀룰러 경유 양방향(HEARTBEAT↓/COMMAND_ACK↑).</li>
+  <li><b>GPS off-셀룰러</b> — SITL을 외부GPS(<code>SIM_GPS_DISABLE=1/GPS_TYPE=14</code>)로 전환, gps_inject가 dahnet으로 GPS_INPUT @10Hz 공급 → fix_type=3.</li>
+  <li><b>폐루프 비행</b> — GCS가 셀룰러 C2로 GUIDED→arm→takeoff→land. GPS=dahnet·C2=셀룰러 동시 정상.</li>
+</ol>
+
+<!-- ───────────── 6. 기능별 사용법 ───────────── -->
+<h2>6. 기능별 사용법</h2>
+<div class="cards">
+  <div class="card full">
+    <h4>bootstrap.sh <span class="badge">환경→G0</span></h4>
+    <div class="cmd">wsl -d Ubuntu
+cd .../testbed-4g
+bash bootstrap.sh        # 00-local-prep → 10-epc-up → provision → 20-ran-up(G0)</div>
+    <div class="desc">호스트 준비 → EPC 기동 → 가입자(UE1) → UAV UE attach까지 한 줄. <code>SKIP_G0=1</code>(G0 생략), <code>FORCE_LOCAL/FORCE_EC2</code>로 경로 강제. ⚠️ 진짜 Linux 셸(WSL/EC2)에서.</div>
+  </div>
+  <div class="card">
+    <h4>30-add-ue.sh &lt;N&gt; <span class="badge">멀티UE</span></h4>
+    <div class="cmd">bash scripts/30-add-ue.sh 2   # GCS
+bash scripts/30-add-ue.sh 3   # ROGUE</div>
+    <div class="desc">(eNB+UE) 쌍 N 추가(multi-eNB). 설정·compose 생성, 가입자 등록, attach + UE-to-UE 검증. N별 IP/enb_id/IMSI 자동.</div>
+  </div>
+  <div class="card">
+    <h4>40-g1-c2.sh <span class="badge">G1 C2</span></h4>
+    <div class="cmd">bash scripts/40-g1-c2.sh</div>
+    <div class="desc">SITL(UAV-UE netns) 기동 → MAVLink UDP를 GCS-UE로. GCS(g1_gcs.py)가 다운링크 HEARTBEAT + 업링크 COMMAND_ACK 확인 = 양방향 C2.</div>
+  </div>
+  <div class="card">
+    <h4>50-g2b-gps.sh <span class="badge">G2 GPS</span></h4>
+    <div class="cmd">bash scripts/50-g2b-gps.sh</div>
+    <div class="desc">uav-ue를 dahnet에 연결, SITL을 외부GPS로 재기동(serial2=GPS dahnet), gps_inject 가동 → fix_type=3 확인. GPS off-셀룰러.</div>
+  </div>
+  <div class="card">
+    <h4>g2_flight.py <span class="badge">폐루프</span></h4>
+    <div class="cmd">docker run -i --rm --network container:srsue_zmq2 \
+  dah-testbed-air python3 - &lt; scripts/g2_flight.py</div>
+    <div class="desc">GCS가 셀룰러 C2로 GUIDED→arm→takeoff(10m)→land. 고도 추종 관측. G2-A 폐루프 검증.</div>
+  </div>
+  <div class="card">
+    <h4>udp_test.py <span class="badge">진단</span></h4>
+    <div class="cmd">docker cp scripts/udp_test.py &lt;ue&gt;:/tmp/
+# rx: python3 /tmp/udp_test.py rx 12
+# tx: python3 /tmp/udp_test.py tx &lt;src&gt; &lt;dst&gt;</div>
+    <div class="desc">UE-to-UE UDP(14550, MAVLink 전송 경로) 도달 점검 도구.</div>
+  </div>
+</div>
+
+<!-- ───────────── 7. 통합 실행 가이드 ───────────── -->
+<h2>7. 통합 실행 가이드 (clone → 두 testbed)</h2>
+<p class="lede">
+  이 repo(<code>github.com/Kjhyun04/dah_testbed</code>)에는 <b>브로드캐스트 testbed(루트)</b>와
+  <b>셀룰러 testbed-4g(<code>testbed-4g/</code>)</b>가 함께 들어 있다. <code>git clone</code>/<code>git pull</code> 한 번에
+  <b>둘 다 받아지고/최신화</b>된다. 단 testbed-4g는 브로드캐스트 testbed의 <b>air 이미지 + dahnet 네트워크</b>를
+  빌려쓰므로 <b>실행 순서가 중요</b>하다(브로드캐스트 → 4G).
+</p>
+<ol class="steps">
+  <li><b>clone (둘 다 받기)</b> — <code>git clone https://github.com/Kjhyun04/dah_testbed</code> · <span class="desc">이후 <code>git pull</code> 한 번이면 두 testbed 모두 최신화.</span></li>
+  <li><b>선행 — 브로드캐스트 testbed 빌드</b> — repo 루트에서 <code>docker compose up -d --build</code>. 이게 <b><code>dah-testbed-air</code> 이미지</b>와 <b><code>dah-testbed_dahnet</code> 네트워크</b>를 생성(= 4G의 SITL·GPS 채널 전제). <span class="desc">자원 아끼려면 이후 <code>docker compose stop</code> — 네트워크·이미지는 유지(컨테이너만 정지). 동시 가동은 자원경합만.</span></li>
+  <li><b>4G 환경 → G0</b> — <code>cd testbed-4g &amp;&amp; bash bootstrap.sh</code> (WSL2 Ubuntu). EPC + UAV UE attach.</li>
+  <li><b>멀티UE</b> — <code>bash scripts/30-add-ue.sh 2</code>(GCS) · <code>3</code>(ROGUE).</li>
+  <li><b>G1 C2-over-LTE</b> — <code>bash scripts/40-g1-c2.sh</code>.</li>
+  <li><b>G2 GPS off-셀룰러 + 폐루프</b> — <code>bash scripts/50-g2b-gps.sh</code> → <code>g2_flight.py</code>(비행).</li>
+</ol>
+<div class="note-box">
+  <b>어떤 "내부 기능"을 실행하나 — 요약.</b><br>
+  • <b>브로드캐스트 testbed(루트)</b>: <code>docker compose up -d --build</code> (air 이미지·dahnet 제공이 핵심 역할). 자체 시나리오 제어는 <code>gcs_cli.py</code>.<br>
+  • <b>셀룰러 testbed-4g</b>: <code>bootstrap.sh</code>(G0) → <code>30-add-ue.sh</code>(멀티UE) → <code>40-g1-c2.sh</code>(C2) → <code>50-g2b-gps.sh</code>+<code>g2_flight.py</code>(GPS+폐루프).<br>
+  • <b>의존</b>: testbed-4g는 dah-* <i>컨테이너</i>는 안 쓰지만 <i>air 이미지 + dahnet 네트워크</i>는 필요 → 브로드캐스트 testbed를 <b>최소 1회 빌드/up</b> 해둘 것.<br>
+  • <b>git pull</b>: 한 repo이므로 <code>git pull</code> 한 번에 <b>두 testbed 모두 최신화</b>.
+</div>
+
+<!-- ───────────── 8. 검증 결과 / 한계 ───────────── -->
+<h2>8. 검증 결과 &amp; 한계</h2>
+<table>
+  <thead><tr><th>게이트</th><th>결과(2026-07-01 실측)</th></tr></thead>
+  <tbody>
+    <tr><td>G0 attach</td><td><span class="badge">✓</span> EPC 9 + UAV UE attach(tun IP·베어러 ping)</td></tr>
+    <tr><td>multi-eNB 멀티UE</td><td><span class="badge">✓</span> 3 eNB+3 UE(UAV .2/GCS .3/ROGUE .4), 브로커 불요</td></tr>
+    <tr><td>UE-to-UE</td><td><span class="badge">✓</span> ICMP + UDP14550 양방향 도달(PGW hairpin)</td></tr>
+    <tr><td>G1 C2-over-LTE</td><td><span class="badge">✓</span> SITL↔GCS 양방향 MAVLink(HEARTBEAT/COMMAND_ACK)</td></tr>
+    <tr><td>G2 폐루프 + GPS off-셀룰러</td><td><span class="badge">✓</span> GPS=dahnet(fix3) + C2=셀룰러 동시, arm→takeoff(9m)→land</td></tr>
+    <tr><td>fresh-clone 재현</td><td><span class="badge">✓</span> 수동편집 0, 스크립트만으로 EPC+3UE 재현</td></tr>
+  </tbody>
+</table>
+<p class="lede" style="margin-top:10px">
+  <b>한계(정직):</b> ZMQ는 결정론적 RF 시뮬 → 프로토콜·로직은 증명하되 실 무선 RTT/지터 아님(전이간극). ·
+  3 eNB+3 UE+SITL+기존 testbed 동시 가동 시 자원 경합(본격 측정 시 분리). ·
+  1차 검증은 git-bash(Docker Desktop) — WSL 네이티브 재현은 integration 토글 후 권장.
+</p>
+
+<footer>
+  testbed-4g 아키텍처 &amp; 운영 가이드 (multi-eNB 최종형) · 2026-07-01<br>
+  근거: Operation Spiderweb(2025-06-01, 실 4G) + Sonaglio et al.(ITA, arXiv:2603.04662, TM1/2/3).<br>
+  역할경계: 인프라/환경/배선만. 공격(TM1/2/3)·방어(MAVLink 서명)·GPS 스푸핑 실행은 사용자.<br>
+  관련: <code>testbed-4g/README.md</code> · <code>4G_UAV_프로젝트_현황.md</code> · <code>testbed-4g/_deprecated/</code>(옛 broker안).
+</footer>
+
+</div>
+</body>
+</html>

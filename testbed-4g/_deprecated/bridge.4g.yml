@@ -1,0 +1,34 @@
+# bridge.4g.yml — SITL/GCS 를 UE netns 에 붙이는 배선 (B1·B2·B3 수정 반영)
+# 사용: docker compose -f docker-compose.4g.yml -f bridge.4g.yml ... (또는 단독 -f)
+#
+# [B1] air/tools 는 기존 testbed compose 소속 → service: 불가 → container:<이름> 사용.
+#      깔끔하게: 여기서 air/gcs 를 *새 서비스*로 정의해 UE netns 공유(기존 air 이미지 재사용).
+# [B2] uav-ue/gcs-ue 가 dahnet 에도 붙어 있어야(docker-compose.4g.yml 에서 처리) GPS_INPUT 수신.
+# [B3] SITL 에 UDP MAVLink 엔드포인트를 명시 — GCS-UE IP 로 C2 송출(셀룰러 경유).
+
+services:
+  # ── SITL (air) → uav-ue netns 공유 ──
+  air4g:
+    image: ${AIR_IMAGE:-dah-air}          # 기존 testbed air 이미지(빌드/태그 EC2 확인)
+    container_name: dah4g-air
+    network_mode: "container:dah4g-uav-ue"  # B1: UAV-UE 의 tun_srsue + dahnet 공유
+    # B3: SITL C2 를 GCS-UE IP 로. serial0(TCP5760)만으론 주입 불가 → UDP 엔드포인트 추가.
+    #     (GPS_INPUT 은 dahnet 으로 별도 수신 — B2)
+    environment:
+      - GCS_UE_IP=${GCS_UE_IP}            # G0 에서 확인한 GCS-UE tun_srsue IP
+    command: >
+      sh -c "ardupilot SITL 기동 시
+             --serial1=udpclient:$${GCS_UE_IP}:14550   # C2 over LTE(tun_srsue)
+             (GPS_INPUT 은 dahnet 입력 유지)"          # ← 실제 start-sitl.sh 인자에 반영
+    restart: unless-stopped
+
+  # ── gcs_cli (tools) → gcs-ue netns 공유 ──
+  gcs4g:
+    image: ${TOOLS_IMAGE:-dah-tools}
+    container_name: dah4g-gcs
+    network_mode: "container:dah4g-gcs-ue"  # B1
+    command: ["python", "gcs_cli.py", "--target", "${UAV_UE_IP}:14550"]  # UAV-UE IP 로 C2
+    restart: unless-stopped
+
+# 주의: network_mode: container: 사용 시 해당 서비스는 자체 networks 를 못 가짐(UE netns 상속).
+#       따라서 air4g/gcs4g 는 networks 키를 두지 않는다(위처럼). GPS·관측은 UE 의 dahnet 경유.

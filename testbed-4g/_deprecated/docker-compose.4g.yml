@@ -1,0 +1,93 @@
+# ============================================================================
+# ⚠️⚠️ 이 파일 = 멀티UE(UAV+GCS+ROGUE) / B① gr-broker 단계 — 아직 미완성(WIP).
+#   ★단일 UE 동작검증(G0)은 이 파일이 아니라 upstream 메커니즘을 쓴다:
+#       docker_open5gs/srsenb_zmq.yaml + srsue_zmq.yaml  (scripts/20-ran-up.sh)
+#   이유(검증 2026-07-01): docker_srslte 이미지는 COMPONENT_NAME + /mnt/srslte +
+#     srslte_init.sh 로 구동된다. 아래 'srsenb 직접호출'은 그 메커니즘과 불일치 →
+#     B① 작업 시 이 파일을 upstream 메커니즘으로 재작성할 것.
+#   멀티UE(rx_port 단일 UE 한계)는 gr-broker(GNU Radio) 필요 — 미구현.
+#   이미지: ${SRSRAN_IMAGE:-docker_srslte}
+# ============================================================================
+
+x-srsran: &srsran
+  image: ${SRSRAN_IMAGE}
+  cap_add: [NET_ADMIN, SYS_NICE]
+  devices: [/dev/net/tun:/dev/net/tun]
+  networks: [epc]
+  restart: unless-stopped
+
+services:
+  # ── eNB (srsenb) — MME에 S1AP(SCTP), UPF에 S1-U(GTP-U) ──
+  srsenb:
+    <<: *srsran
+    container_name: dah4g-srsenb
+    networks:
+      epc:
+        ipv4_address: ${ENB_IP}
+    volumes:
+      - ./srsran/enb.conf:/etc/srsran/enb.conf:ro
+    command: >
+      sh -c "sed -e 's/MME_IP/${MME_IP}/g' -e 's/ENB_IP/${ENB_IP}/g'
+             /etc/srsran/enb.conf > /tmp/enb.conf &&
+             srsenb /tmp/enb.conf"
+
+  # ── UE: UAV (단일UE G0는 broker 없이 enb와 직결 ZMQ) ──
+  uav-ue:
+    <<: *srsran
+    container_name: dah4g-uav-ue
+    depends_on: [srsenb]
+    networks: [epc, dahnet]            # B2: GPS_INPUT(dahnet) + C2(tun_srsue)
+    volumes:
+      - ./srsran/ue.conf.template:/etc/srsran/ue.tmpl:ro
+    # IMSI/ZMQ 포트 치환. ZMQ_PEER: 단일UE면 srsenb, 멀티UE면 gr-broker.
+    command: >
+      sh -c "sed -e 's/__IMSI__/001010000000001/g' -e 's/__UETX__/2001/g' -e 's/__UERX__/2000/g'
+             -e 's/__PEER__/${ZMQ_PEER:-srsenb}/g'
+             /etc/srsran/ue.tmpl > /tmp/ue.conf &&
+             srsue /tmp/ue.conf"
+
+  # ── UE: GCS (멀티UE 프로파일) ──
+  gcs-ue:
+    <<: *srsran
+    container_name: dah4g-gcs-ue
+    depends_on: [srsenb]
+    profiles: [multiue]
+    networks: [epc, dahnet]
+    volumes:
+      - ./srsran/ue.conf.template:/etc/srsran/ue.tmpl:ro
+    command: >
+      sh -c "sed -e 's/__IMSI__/001010000000002/g' -e 's/__UETX__/2201/g' -e 's/__UERX__/2200/g'
+             -e 's/__PEER__/gr-broker/g'
+             /etc/srsran/ue.tmpl > /tmp/ue.conf && srsue /tmp/ue.conf"
+
+  # ── UE: ROGUE (TM1 동거 UE, 멀티UE 프로파일) ──
+  rogue-ue:
+    <<: *srsran
+    container_name: dah4g-rogue-ue
+    depends_on: [srsenb]
+    profiles: [multiue]
+    networks: [epc]
+    volumes:
+      - ./srsran/ue.conf.template:/etc/srsran/ue.tmpl:ro
+    command: >
+      sh -c "sed -e 's/__IMSI__/001010000000003/g' -e 's/__UETX__/2301/g' -e 's/__UERX__/2300/g'
+             -e 's/__PEER__/gr-broker/g'
+             /etc/srsran/ue.tmpl > /tmp/ue.conf && srsue /tmp/ue.conf"
+
+  # ── ★멀티UE ZMQ broker (GNU Radio) — srsenb 단일 RF ↔ N UE 분배/합성 ──
+  gr-broker:
+    image: ${SRSRAN_IMAGE}
+    container_name: dah4g-gr-broker
+    profiles: [multiue]
+    networks: [epc]
+    # docker_open5gs 의 멀티UE GNU Radio 브로커 스크립트를 사용(EC2에서 경로·포트 확인).
+    # enb(2000/2001) ↔ uav(2000/2001)·gcs(2200/2201)·rogue(2300/2301) 매핑.
+    command: ["python3", "/opt/srsran/zmq_broker.py", "--help"]   # ← 실제 브로커 진입점으로 교체
+
+networks:
+  epc:
+    external: true
+    name: ${EPC_NET}                   # docker_open5gs EPC 네트워크
+  dahnet:
+    external: true
+    name: ${DAHNET:-testbed_dahnet}    # 기존 testbed 의 dahnet (GPS off-셀룰러용)

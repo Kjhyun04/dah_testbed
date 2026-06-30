@@ -1,0 +1,29 @@
+# srsue 템플릿 — compose 가 __IMSI__ / __UETX__ / __UERX__ / __PEER__ 치환.
+# key/opc 는 user_db.csv 및 Open5GS HSS 등록값과 반드시 일치(provision.sh).
+
+[rf]
+device_name = zmq
+# tx: 이 UE 가 bind(=enb/broker 가 여기로 연결해 수신). rx: PEER 의 tx 에 연결.
+device_args = tx_port=tcp://*:__UETX__,rx_port=tcp://__PEER__:__UERX__,id=ue,base_srate=23.04e6
+
+[rat.eutra]
+dl_earfcn    = 2850
+nof_carriers = 1
+
+[usim]
+mode = soft
+algo = milenage
+opc  = E8ED289DEBA952E4283B54E88E6183CA
+k    = 465B5CE8B199B49FAA5F0A2EE238A6BC
+imsi = __IMSI__
+imei = 353490069873319
+
+[nas]
+apn = internet
+
+[gw]
+ip_devname = tun_srsue
+
+[log]
+all_level = info
+filename  = /tmp/ue.log
