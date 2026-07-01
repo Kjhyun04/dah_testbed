@@ -11,7 +11,8 @@
 - **구현 타깃 = 4G/LTE** (5G 아님). Open5GS **EPC** + **srsRAN(ZMQ)** + MAVLink C2.
 - **설계·문서 완료**, **실제 기동은 미착수**(셸 차단으로 로컬 불가 → **EC2에서 G0부터**).
 - **★구현 환경 = 로컬 Docker 로 전환(2026-06-30)**: AWS EC2 아님. **WSL2 Ubuntu + Docker Desktop**.
-  - 로컬 가능성 검증 완료: WSL2 커널(6.6.114.1)에 **sctp.ko 존재** → `modprobe sctp` 시 **컨테이너가 SCTP 인식**(MME S1AP 가능, busybox로 실증). `/dev/net/tun` ✅, 12 vCPU/15.4 GB ✅.
+  - 로컬 가능성 검증 완료: WSL2 커널(6.6.114.1)에 **sctp.ko 존재** → `modprobe sctp` 시 **컨테이너가 SCTP 인식**(MME S1AP 가능, busybox로 실증). `/dev/net/tun` ✅.
+  - **★자원 실측 정정(2026-07-01)**: 이 장비는 **물리 4코어/8스레드 · 15.7GB RAM** (문서 초안의 "12 vCPU/15.4GB"는 오기). CPU는 이미 8스레드 전부 WSL 할당 → **증설 불가**. WSL 기본 RAM(50%≈7.7GB)이 캡에 근접해 불안정 → `~/.wslconfig` 로 **memory=12GB** 상향.
   - **운영 주의**: sctp 는 **WSL2 VM 재시작 시 휘발**(Docker Desktop 재시작이 VM 재시작 유발) → prep 재실행 필요. 순서=Docker Desktop 먼저↑ → sctp 로드 → EPC.
   - **선행 1회(GUI)**: Docker Desktop ▸ Resources ▸ WSL integration ▸ `Ubuntu` ON (사용자 토글).
 - **★A(게이트0 환경) 자동화 완료**: `bootstrap.sh` 가 WSL 자동감지 → `00-local-prep.sh`(docker→sctp→tun)→A2(EPC+`.env.4g` 자동생성)→A3(가입자 등록).
@@ -31,6 +32,12 @@
   - 발견: ArduPilot GPS 헬스 freshness 임계 245ms → GPS_INPUT **10Hz**(100ms) 주입 필요("GPS not healthy" 해소).
 - **검증 완료(전부 실측)**: G0 attach · multi-eNB 멀티UE · UE-to-UE(ICMP·UDP) · G1 C2-over-LTE · G2 폐루프+GPS off-셀룰러. **셀룰러 C2 드론 폐루프 = 동작.**
 - **★fresh-clone 재현 통과(2026-07-01)**: 깨끗한 새 clone에서 수동편집 0, 스크립트만으로 **EPC + 3 UE(UAV .2/GCS .3/ROGUE .4)** 재현. CRLF 없음·sgsap 자동패치 확인. UE-to-UE 동거 메시 전부 도달(TM1 전제). → **스크립트 self-contained·재현성 입증.** (단 3eNB+3UE+기존7 동시 가동 시 RTT 자원경합 — 본격 측정 시 기존 testbed 정지.)
+- **★로컬 재검증 + 실측 수정(2026-07-01, 2세션)**: 깨끗한 로컬 기동 중 실버그 3개 발견·영구수정, G0/G1 재검증 통과(UAV `.2`/GCS `.3`, UE-to-UE 0% loss, C2-over-LTE 양방향).
+  - ① **air CRLF**: `air/start-sitl.sh` shebang 이 Windows 체크아웃(autocrlf)으로 CRLF → Docker COPY 후 `exec: no such file or directory` 크래시(Restarting 255). → **`.gitattributes`(eol=lf) + core.autocrlf=false** 로 영구방지.
+  - ② **OPc auth 불일치**: EPC init 이 UE1(IMSI …895)을 `opc=raw-OP`(1111…)로 선등록 → srsUE 는 OP 로 OPc 유도 → attach 시 **`Network authentication failure`**(G0 미통과). → `provision.sh` 가 등록 전 **remove 선행**(유도 OPc 로 재등록) 영구수정. (pair2/3 은 `30-add-ue` 가 유도 OPc 등록이라 정상이었음 — pair1 만 init 선등록에 걸림.)
+  - ③ **attach 오탐**: CPU 포화 시 attach 가 60s 초과 → `20-ran-up`/`30-add-ue` 대기 **60→120s**.
+  - **★하드웨어 한계 = 동시 쌍 수 제한**: 4코어/8스레드에서 **3쌍(srsRAN 6프로세스)은 CPU 기아**로 NAS 트랜잭션 타임아웃(MME `Failure in transaction`) → attach bounce. **운용 규칙: 평상시 2쌍(UAV+GCS), ROGUE(pair3)는 TM1 때만 잠깐**. (`33` 항의 "3eNB+3UE 동시" 는 이 장비에선 불안정.)
+  - **신규 산출물**: Gazebo 시각화(`gazebo/srsue_zmq.gazebo.override.yaml` + `scripts/45-g1-gazebo.sh`, noVNC `:6080`) · 공격 실습 가이드(`docs/testbed-4g_공격실습_가이드.html`, TM1/TM2/TM3 절차·컨테이너·명령·판정·원복).
 - **다음(공격/방어 = 사용자 역할)**: TM1(rogue UE→UAV-UE:14550 주입) · TM3(eNB GTP-U 변조) · MAVLink v2 서명(방어) · GPS 스푸핑(주입기 좌표 조작). 인프라는 준비됨.
 
 ---
