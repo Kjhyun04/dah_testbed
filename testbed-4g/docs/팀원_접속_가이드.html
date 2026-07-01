@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>testbed-4g — 팀원 접속 가이드 (온보딩)</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2c; --panel2:#1c2536; --line:#2a3547;
+    --txt:#e6ebf2; --muted:#95a3b8; --accent:#4da3ff; --accent2:#59d499;
+    --warn:#ffcc66; --danger:#ff7a7a; --code:#0b0f18; --chip:#233149;
+    --member:#59d499; --admin:#4da3ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    line-height:1.7;font-size:15.5px}
+  .wrap{max-width:940px;margin:0 auto;padding:0 22px 120px}
+  header.hero{padding:50px 0 26px;border-bottom:1px solid var(--line);margin-bottom:10px}
+  .kicker{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12.5px;text-transform:uppercase}
+  h1{font-size:31px;margin:10px 0 8px}
+  .sub{color:var(--muted);font-size:16px;margin:0}
+  .fillin{margin-top:16px;background:var(--panel2);border:1px dashed var(--accent);border-radius:10px;padding:12px 16px;font-size:14px}
+  .fillin b{color:#fff}
+  h2{font-size:22px;margin:44px 0 14px;padding-top:10px;display:flex;align-items:center;gap:11px}
+  h2 .badge{display:inline-flex;align-items:center;justify-content:center;padding:3px 12px;
+    border-radius:8px;font-size:13px;font-weight:800;flex:none}
+  .badge.member{background:rgba(89,212,153,.16);color:#8ce9bd;border:1px solid #2f6b4d}
+  .badge.admin{background:rgba(77,163,255,.14);color:#9cc8ff;border:1px solid #2a4a6b}
+  h3{font-size:17px;margin:24px 0 9px;color:#cfe0f5}
+  p{margin:10px 0} a{color:var(--accent)}
+  code{background:var(--code);border:1px solid var(--line);border-radius:5px;padding:1.5px 6px;
+    font-size:13px;font-family:"SFMono-Regular",Consolas,monospace;color:#d7e6ff}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:11px;padding:15px 17px;
+    overflow-x:auto;margin:12px 0;font-size:13px;line-height:1.6}
+  pre code{background:none;border:none;padding:0;color:#cfe3ff}
+  .cmt{color:#6f7f96}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.6px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:#cfe0f5}
+  .callout{border-left:4px solid var(--accent);background:var(--panel2);border-radius:0 10px 10px 0;
+    padding:12px 16px;margin:14px 0}
+  .callout.warn{border-color:var(--warn)} .callout.danger{border-color:var(--danger)}
+  .callout.good{border-color:var(--accent2)} .callout b{color:#fff}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:14px 0}
+  .step .st-n{display:inline-block;background:var(--accent);color:#04101f;font-weight:800;
+    border-radius:7px;padding:1px 10px;margin-right:8px;font-size:13px}
+  .step.member .st-n{background:var(--member);color:#043020}
+  .step.admin .st-n{background:var(--admin);color:#04101f}
+  ul{margin:9px 0;padding-left:22px} li{margin:5px 0}
+  .mini{font-size:12.5px;color:var(--muted)}
+  .foot{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  nav.toc{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 6px}
+  nav.toc a{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 12px;border-radius:8px;
+    border:1px solid var(--line);background:var(--panel)}
+  nav.toc a:hover{color:var(--txt);background:var(--panel2)}
+  kbd{background:#26324a;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker">DAH · testbed-4g · Team Onboarding</div>
+  <h1>팀원 접속 가이드</h1>
+  <p class="sub">공유 EC2(테스트베드 서버)에 팀원을 초대하고 접속하는 방법. <b>팀원용</b>과 <b>관리자용</b> 트랙으로 나뉩니다.</p>
+  <div class="fillin">
+    📌 <b>서버 주소(고정 IP)</b>: <code>&lt;여기에 EIP 기입 — 예: 54.88.236.111&gt;</code> ·
+    <b>로그인 사용자</b>: <code>ubuntu</code>
+    <div class="mini" style="margin-top:6px">※ 반드시 <b>탄력적 IP(EIP)</b> 주소를 공유할 것 — 자동할당 IP는 재시작 시 바뀜.</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#keys">🔑 키 3종 이해</a>
+  <a href="#member">🟢 팀원용</a>
+  <a href="#admin">🔵 관리자용</a>
+  <a href="#ui">🖥 웹 UI 터널</a>
+  <a href="#collab">🤝 협업 규칙</a>
+  <a href="#trouble">🛠 트러블슈팅</a>
+</nav>
+
+<!-- ============ KEYS ============ -->
+<h2 id="keys">🔑 먼저: 키 3종 구분</h2>
+<p>헷갈리기 쉬운 세 가지를 구분하면 나머지가 쉽습니다.</p>
+<table>
+  <tr><th>키</th><th>누구 것</th><th>어디서 만드나</th><th>인스턴스 새로 만들면?</th></tr>
+  <tr><td><code>id_ed25519</code> (개인키/공개키)</td><td><b>팀원 개인</b></td>
+      <td>팀원 본인 PC에서 <code>ssh-keygen</code> <b>1회</b></td><td>❌ <b>안 바뀜</b> — 평생 재사용</td></tr>
+  <tr><td><code>*.pem</code> (AWS 키페어)</td><td>서버 소유자(관리자)</td>
+      <td>AWS 콘솔에서 인스턴스 생성 시</td><td>⭕ 새 인스턴스마다 다를 수 있음</td></tr>
+  <tr><td>호스트 키</td><td>서버 자신</td><td>인스턴스가 자동 생성</td><td>새 인스턴스면 바뀜(<code>known_hosts</code>)</td></tr>
+</table>
+<div class="callout good">
+  <b>핵심.</b> 팀원은 <code>id_ed25519</code>를 <b>한 번만</b> 만들고 공개키(<code>.pub</code>)만 관리자에게 전달한다.
+  서버를 새로 만들어도 팀원 키는 그대로 — 관리자가 새 서버에 공개키를 다시 등록만 하면 된다.
+  <b>관리자의 <code>.pem</code>은 팀원에게 나눠주지 않는다.</b>
+</div>
+
+<!-- ============ MEMBER ============ -->
+<h2 id="member"><span class="badge member">팀원용</span> 접속 준비 &amp; 접속</h2>
+
+<div class="step member">
+  <p><span class="st-n">1</span><b>내 SSH 키 생성</b> (본인 PC에서, 최초 1회) — Windows/Mac/Linux 공통</p>
+  <pre><code>ssh-keygen -t ed25519 -C "이름@dah_testbed"
+<span class="cmt"># 프롬프트는 전부 Enter(기본 경로/무암호). 이미 있으면 새로 안 만들어도 됨.</span></code></pre>
+  <p class="mini">생성 위치: <code>~/.ssh/id_ed25519</code>(개인키·비공개) + <code>~/.ssh/id_ed25519.pub</code>(공개키·공유가능)</p>
+</div>
+
+<div class="step member">
+  <p><span class="st-n">2</span><b>공개키를 관리자에게 전달</b> (이 한 줄만 복사)</p>
+  <pre><code><span class="cmt"># Mac/Linux</span>
+cat ~/.ssh/id_ed25519.pub
+<span class="cmt"># Windows PowerShell</span>
+type $env:USERPROFILE\.ssh\id_ed25519.pub</code></pre>
+  <p>출력된 <code>ssh-ed25519 AAAA... 이름@dah_testbed</code> 한 줄을 관리자에게 보냄.
+     + 내 <b>공인 IP</b>도 함께 전달(브라우저에서 <a href="https://checkip.amazonaws.com">checkip.amazonaws.com</a> 접속 → 나온 주소).</p>
+  <div class="callout danger" style="margin:8px 0 0"><b>절대 금지:</b> 확장자 없는 <code>id_ed25519</code>(개인키)를 공유하지 말 것. <b><code>.pub</code>만</b> 전달.</div>
+</div>
+
+<div class="step member">
+  <p><span class="st-n">3</span><b>접속</b> (관리자가 "등록 완료" 하면)</p>
+  <pre><code>ssh -i ~/.ssh/id_ed25519 ubuntu@&lt;서버 EIP&gt;
+<span class="cmt"># 처음이면 "Are you sure...?" → yes</span></code></pre>
+  <p class="mini">Windows에서 <code>Permission denied</code>·<code>bad permissions</code>가 뜨면 아래 <a href="#trouble">트러블슈팅</a> 참고.</p>
+</div>
+
+<!-- ============ ADMIN ============ -->
+<h2 id="admin"><span class="badge admin">관리자용</span> 팀원 추가 (2가지만)</h2>
+<p>팀원에게 받은 <b>①공개키 ②공인 IP</b> 로 아래 두 가지를 하면 끝.</p>
+
+<div class="step admin">
+  <p><span class="st-n">A</span><b>공개키 등록</b> (서버 EC2 안에서)</p>
+  <pre><code><span class="cmt"># 받은 공개키 한 줄을 추가 (여러 명이면 반복)</span>
+echo "ssh-ed25519 AAAA...받은공개키... 이름@dah_testbed" >> ~/.ssh/authorized_keys
+
+<span class="cmt"># 권한 유지(중요 — 홈/.ssh 권한이 열리면 sshd가 접속 거부)</span>
+chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys</code></pre>
+</div>
+
+<div class="step admin">
+  <p><span class="st-n">B</span><b>보안그룹에 팀원 IP 허용</b> (AWS 콘솔)</p>
+  <p>EC2 → <b>보안 그룹</b> → 이 인스턴스의 SG → <b>인바운드 규칙 편집</b> → <b>규칙 추가</b>:</p>
+  <ul>
+    <li>유형 <b>SSH</b> · 포트 <b>22</b> · 소스 <b><code>&lt;팀원IP&gt;/32</code></b> · 설명 "이름"</li>
+  </ul>
+  <div class="callout warn" style="margin:8px 0 0">
+    집/카페 IP는 바뀔 수 있어 바뀌면 이 규칙을 갱신해야 한다. 키 인증이 필수라 <code>0.0.0.0/0</code>도 치명적이진
+    않으나 인터넷 스캔에 노출되므로 <b>IP 지정 권장</b>.
+  </div>
+</div>
+
+<div class="callout"><b>팁.</b> 새 서버로 이전할 때도 팀원은 아무것도 안 해도 된다 — 관리자가 새 서버에서 <b>A</b>(공개키 목록 붙여넣기) + <b>B</b>(IP 규칙)만 다시 하면 된다.</div>
+
+<!-- ============ UI ============ -->
+<h2 id="ui">🖥 웹 UI 접근 (SSH 터널)</h2>
+<p>noVNC·로그뷰어·Open5GS WebUI는 서버 <b>루프백에만</b> 열려 있어(보안), SSH 터널로만 본다. 접속 권한만 있으면 추가 설정 없음.</p>
+<pre><code>ssh -i ~/.ssh/id_ed25519 \
+  -L 6080:localhost:6080 \   <span class="cmt"># Gazebo noVNC  → http://localhost:6080/vnc.html</span>
+  -L 8080:localhost:8080 \   <span class="cmt"># 로그뷰어      → http://localhost:8080</span>
+  -L 9999:localhost:9999 \   <span class="cmt"># Open5GS WebUI → http://localhost:9999 (admin/1423)</span>
+  ubuntu@&lt;서버 EIP&gt;</code></pre>
+<p class="mini">터널이 열려 있는 동안 로컬 브라우저에서 <code>localhost:포트</code>로 접속. 세션 닫으면 터널도 닫힘.</p>
+
+<!-- ============ COLLAB ============ -->
+<h2 id="collab">🤝 협업 규칙</h2>
+<p>모두 같은 EPC·컨테이너를 공유하므로 충돌을 피하는 규칙이 필요하다.</p>
+<ul>
+  <li><b>동시 1실험 + 나머지는 관찰</b> — 한 명이 기동, 나머지는 같은 화면을 본다.</li>
+  <li><b>tmux 공유 세션</b>:
+    <pre><code>기동자:  tmux new -s dah
+관찰자:  tmux attach -t dah        <span class="cmt"># 보기만: tmux attach -r -t dah</span>
+분리:    <kbd>Ctrl</kbd>+<kbd>b</kbd> 뗀 뒤 <kbd>d</kbd></code></pre></li>
+  <li>서로 다른 실험을 동시에 돌리면 MME/포트가 겹치니 피할 것.</li>
+</ul>
+
+<!-- ============ TROUBLE ============ -->
+<h2 id="trouble">🛠 트러블슈팅</h2>
+<table>
+  <tr><th>증상</th><th>원인 / 해결</th></tr>
+  <tr><td>Windows: <code>bad permissions</code> / <code>UNPROTECTED KEY</code></td>
+      <td>키 파일 권한 과다. PowerShell:<br>
+      <code>icacls "키경로.pem" /inheritance:r</code><br>
+      <code>icacls "키경로.pem" /grant:r "$($env:USERNAME):(R)"</code></td></tr>
+  <tr><td><code>Permission denied (publickey)</code></td>
+      <td>① 관리자가 내 공개키를 아직 등록 안 함(A) ② 내 IP가 SG에 없음(B) ③ 잘못된 개인키 지정(<code>-i</code> 경로 확인)</td></tr>
+  <tr><td>접속 자체가 안 됨(타임아웃)</td>
+      <td>서버가 <b>중지(stop)</b> 상태이거나, IP가 바뀜(EIP 미사용). 관리자에게 서버 상태·주소 확인</td></tr>
+  <tr><td><code>REMOTE HOST IDENTIFICATION HAS CHANGED</code></td>
+      <td>서버를 새로 만든 경우(호스트 키 변경). <code>known_hosts</code>에서 해당 줄 삭제 후 재접속</td></tr>
+  <tr><td>웹 UI 접속 안 됨</td><td>포트는 루프백 전용 — 반드시 <a href="#ui">SSH 터널</a>로 접근</td></tr>
+</table>
+
+<div class="foot">
+  <p>관련 문서 — 서버 프로비저닝/운영: <code>testbed-4g/docs/AWS_SETUP.md</code> ·
+     아키텍처/운영: <code>testbed-4g/docs/testbed-4g_아키텍처_운영가이드.html</code></p>
+  <p>DAH · testbed-4g · 공유 EC2 팀 온보딩 · 접속은 개인 SSH 키, 서버 주소는 EIP로 고정</p>
+</div>
+
+</div>
+</body>
+</html>
