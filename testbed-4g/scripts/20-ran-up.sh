@@ -31,9 +31,9 @@ docker logs "$ENB_CT" 2>&1 | grep -iE 'connected|s1 setup|error|started' | tail 
 log "srsue_zmq 기동(force-recreate)..."; docker compose -f "$UE_YML" up -d --force-recreate
 
 # ── 3. tun_srsue + attach 대기 ──────────────────────────────────────────────
-log "attach 대기(최대 60s): tun_srsue IP..."
+log "attach 대기(최대 120s): tun_srsue IP..."   # CPU 포화 시 attach 60s 초과 가능(오탐 방지)
 IP=""
-for i in $(seq 1 60); do
+for i in $(seq 1 120); do
   IP="$(docker exec "$UE_CT" ip -o -4 addr show tun_srsue 2>/dev/null | awk '{print $4}' | cut -d/ -f1 || true)"
   [[ -n "$IP" ]] && break
   sleep 1

@@ -85,9 +85,9 @@ sleep 4
 log "srsue_zmq${N} 기동"; docker compose -f "pair${N}.yaml" up -d --force-recreate "srsue_zmq${N}"
 
 # ── 5. attach 검증 ──────────────────────────────────────────────────────────
-log "attach 대기(최대 60s)..."
+log "attach 대기(최대 120s)..."   # 다중 UE/CPU 포화 시 attach 가 60s 초과 가능(오탐 방지)
 IP2=""
-for i in $(seq 1 60); do
+for i in $(seq 1 120); do
   IP2="$(docker exec "srsue_zmq${N}" ip -o -4 addr show tun_srsue 2>/dev/null | awk '{print $4}' | cut -d/ -f1 || true)"
   [[ -n "$IP2" ]] && break; sleep 1
 done
