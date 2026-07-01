@@ -43,6 +43,9 @@ docker ps --format '{{.Names}}' | grep -qx "$WEBUI" || {
   [[ -n "$WEBUI" ]] || die "webui 컨테이너 없음 — EPC 기동 확인(10-epc-up.sh)."
 }
 log "dbctl(@$WEBUI) add_ue_with_apn ..."
+# ★EPC init 이 .env UE1 을 opc=raw-OP 로 선등록하는 경우가 있어(add_ue 가 '이미 존재'로 스킵되면
+#   잘못된 OPc 가 남아 attach 시 'Network authentication failure') 항상 먼저 제거 후 재등록한다.
+docker exec "$WEBUI" misc/db/open5gs-dbctl remove "$IMSI" >/dev/null 2>&1 || true
 if docker exec "$WEBUI" misc/db/open5gs-dbctl add_ue_with_apn "$IMSI" "$KI" "$OPC" "$APN" 2>&1; then
   log "등록 성공"
 else

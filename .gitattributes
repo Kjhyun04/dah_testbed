@@ -1,0 +1,17 @@
+# 이 프로젝트는 전부 Linux 컨테이너에서 동작 → 워킹트리를 항상 LF 로 유지.
+# (Windows 클론 시 CRLF 로 변환돼 이미지에 COPY 되면 .sh shebang 이 깨져
+#  "exec ...: no such file or directory" 로 컨테이너가 크래시하는 문제 방지.)
+* text=auto eol=lf
+
+# 셸/설정 스크립트는 반드시 LF (이미지에 구워지는 실행 스크립트)
+*.sh   text eol=lf
+*.conf text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.parm text eol=lf
+
+# 바이너리는 변환 금지
+*.png  binary
+*.jpg  binary
+*.gz   binary
+*.bin  binary

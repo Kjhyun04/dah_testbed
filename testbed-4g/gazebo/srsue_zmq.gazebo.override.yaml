@@ -1,0 +1,21 @@
+# ============================================================================
+# Gazebo 시각화용 compose override — UAV-UE(srsue_zmq) 컨테이너에 noVNC 포트만 추가.
+#
+# 배경: SITL 은 `--network container:srsue_zmq` 로 UE netns 를 공유하므로 자기 포트를
+#   직접 publish 할 수 없다(Docker 제약). 그래서 netns 소유자인 srsue_zmq 가 6080 을
+#   대신 노출하고, SITL 이 그 netns 안에서 websockify(6080) 를 띄우면 host:6080 도달.
+#
+# 원칙: 업스트림 ~/docker_open5gs/srsue_zmq.yaml 은 편집하지 않는다.
+#   이 파일을 `-f` 로 겹쳐 올려(ports 리스트는 병합) 셀룰러/라디오 설정은 무변경 유지.
+#   추가되는 것은 관측용 포트 하나뿐 — 베어러·attach·C2 경로에 기능적 영향 0.
+#
+# 사용(스크립트 45-g1-gazebo.sh 가 자동 수행):
+#   cd ~/docker_open5gs
+#   docker compose -f srsue_zmq.yaml \
+#     -f <repo>/testbed-4g/gazebo/srsue_zmq.gazebo.override.yaml \
+#     up -d --force-recreate
+# ============================================================================
+services:
+  srsue_zmq:
+    ports:
+      - "6080:6080"   # noVNC(Gazebo GUI) → http://localhost:6080/vnc.html
