@@ -36,7 +36,7 @@ services:
     expose:
       - "5760"
     ports:
-      - "6080:6080"             # noVNC(Gazebo GUI) — 브라우저 관측(P-23)
+      - "127.0.0.1:6080:6080"   # noVNC(Gazebo GUI) — 브라우저 관측(P-23). 루프백 전용: 공유 EC2에선 SSH 터널로만 접근(ssh -L 6080:localhost:6080)
     environment:
       CAM_HOST: ${CAM_HOST:-host.docker.internal}  # 카메라 RTP 수신 측(지상/호스트)
       CAM_PORT: ${CAM_PORT:-5600}
@@ -143,7 +143,7 @@ services:
     volumes:
       - ./rf/channel/ctrl:/ctrl:ro
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"   # 로그뷰어 — 루프백 전용: 공유 EC2에선 SSH 터널로만(ssh -L 8080:localhost:8080)
     restart: unless-stopped
     networks:
       dahnet:

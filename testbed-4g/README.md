@@ -51,12 +51,32 @@ testbed-4g/
     40-g1-c2.sh + g1_gcs.py    # G1 MAVLink C2-over-LTE (SITL↔GCS)
     50-g2b-gps.sh + gps_inject.py  # G2-B GPS off-셀룰러 (dahnet 주입)
     g2_flight.py               # G2-A 폐루프 비행 (arm→takeoff→land)
+    60-viz-gazebo.sh           # (opt-in) G2 + Gazebo 3D 시각화 — 공격을 눈으로 관측
+      + sitl_gazebo_launch.sh  #   컨테이너측: SITL(--model JSON)+Gazebo+noVNC (UAV netns)
+      + tcp_relay.py           #   netns 안 noVNC(:6080)를 호스트로 노출(socat 부재 대체)
     udp_test.py                # UE-to-UE UDP(14550) 전송 점검 도구
+    aws-resume.sh              # (EC2) stop→start 후 재기동 원스텝 (sctp/tun→EPC→G0)
+    aws-idle-autostop.sh       # (EC2) 유휴 자동 stop — 비용 가드(cron 등록)
+  docs/
+    AWS_SETUP.md               # 공유 EC2 프로비저닝·운영 가이드(AMI/유형/SG/터널/비용)
   _deprecated/                 # multi-eNB 전환으로 대체된 옛 산출물(broker안 등) — 삭제가능
 ```
+
+## 4-B. (opt-in) Gazebo 3D 시각화 — 공격을 "눈으로"
+```bash
+bash scripts/60-viz-gazebo.sh        # SITL 백엔드를 Gazebo FDM 으로 교체 + noVNC 노출
+# 관측: 브라우저 → http://localhost:6080/vnc.html
+# 비행: docker run -i --rm --network container:srsue_zmq2 dah-testbed-air python3 - < scripts/g2_flight.py
+```
+- **무엇이 바뀌나**: 기본 G1/G2 는 SITL 내장물리(`--model quad`)라 **공격 증명은 텔레메트리로 충분**(SIMSTATE truth vs EKF 발산). 60 은 그 위에 **시각 증거**를 더한다 — SITL 을 `--model JSON`(Gazebo FDM)로 교체해 GCS 지도엔 "정상"인데 3D 엔 스푸핑 표류/추락이 보이게.
+- **채널분리 유지**: FDM(SITL↔Gazebo, 9002/9003)은 **같은 UAV-UE netns 의 localhost** → 셀룰러에 안 태움(GPS off-셀룰러와 같은 원리). C2 만 serial0(셀룰러), GPS 만 serial2(dahnet).
+- **컨테이너 이름 동일**(`dah4g-sitl`/`dah4g-gps`) → 기존 비행·TM1/2/3·GPS 스푸핑 절차 **그대로 재사용**, 관측만 추가.
+- **40/50 불변**: 60 은 별도 opt-in. 검증된 기본 경로는 건드리지 않는다.
+- **첫 실행 확인점**: `--model JSON`에서도 `SIMSTATE` truth(lat/lng)가 나와 `gps_inject.py`가 GPS_INPUT 을 채우는지 — 루트 testbed 비행이 성립하므로 정상일 가능성이 높으나, 60 의 GPS fix 게이트가 이를 자동 검증한다(실패 시 즉시 die).
 
 ## 5. 정직한 한계
 - **전이간극**: ZMQ는 결정론적 RF 시뮬 → 프로토콜·로직 증명, 실 무선 RTT/지터 아님.
 - **자원 경합**: 3 eNB+3 UE+SITL+(기존 testbed 7) 동시 가동 시 RTT 변동. 본격 측정 시 기존 testbed 정지 권장.
+- **Gazebo 시각화(60) 부하**: GPU 미통과 환경은 소프트웨어 GL 렌더 → CPU 부담↑·GUI 프레임↓(물리/FDM 은 헤드리스 서버라 영향 적음). 데모는 단일 UE 권장, RTT 측정과 동시 구동은 비권장.
 - **검증 환경**: 1차 검증은 git-bash(Docker Desktop) — WSL-네이티브 재현은 integration 토글 후 권장.
 - srsRAN_4G 유지보수 모드(LTE 동작은 정상).
